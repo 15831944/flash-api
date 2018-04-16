@@ -36,6 +36,15 @@
     <ClInclude Include="ControlCAN.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="open_device.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Login.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CanAnalyse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="flash_api.cpp">
@@ -47,6 +56,15 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="open_device.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Login.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="CanAnalyse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="flash_api.rc">
@@ -54,13 +72,16 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="res\flash_api.rc2">
-      <Filter>资源文件</Filter>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="res\flash_api.ico">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="res\toolbar1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="ControlCAN.lib">
+      <Filter>源文件</Filter>
+    </Library>
   </ItemGroup>
 </Project>
