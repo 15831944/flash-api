@@ -32,7 +32,6 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-
 	CProgressCtrl FlashUpdateProgress;
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedAdd();
@@ -54,4 +53,5 @@ public:
 	afx_msg void OnEnChangeId();
 	afx_msg void OnEnChangeDlc();
 	afx_msg void OnEnChangeData();
+	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 };

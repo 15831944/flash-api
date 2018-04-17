@@ -36,13 +36,10 @@
     <ClInclude Include="ControlCAN.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="open_device.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="Login.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="CanAnalyse.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FlashUpdateInv.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -56,13 +53,10 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="open_device.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Login.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="CanAnalyse.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FlashUpdateInv.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

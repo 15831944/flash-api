@@ -7,9 +7,8 @@
 #include "flash_apiDlg.h"
 #include "afxdialogex.h"
 #include "ControlCAN.h"
-#include "open_device.h"
-#include "Login.h"
 #include "CanAnalyse.h"
+#include "FlashUpdateInv.h"
 //#pragma comment(lib, "ControlCAN.lib")
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -90,6 +89,7 @@ BEGIN_MESSAGE_MAP(Cflash_apiDlg, CDialogEx)
 	ON_EN_CHANGE(IDC_ID, &Cflash_apiDlg::OnEnChangeId)
 	ON_EN_CHANGE(IDC_DLC, &Cflash_apiDlg::OnEnChangeDlc)
 	ON_EN_CHANGE(IDC_DATA, &Cflash_apiDlg::OnEnChangeData)
+	ON_WM_SHOWWINDOW()
 END_MESSAGE_MAP()
 
 
@@ -273,7 +273,9 @@ CAN		波特率		定时器0		定时器1
 **************************************************************************/
 void Cflash_apiDlg::OnBnClickedStart()
 {
-
+	OnOK();
+	FlashUpdateInv	FlashUpdateInv;;
+	FlashUpdateInv.DoModal();
 
 }
 
@@ -495,4 +497,12 @@ void Cflash_apiDlg::OnEnChangeData()
 	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
 
 	// TODO:  在此添加控件通知处理程序代码
+}
+
+
+void Cflash_apiDlg::OnShowWindow(BOOL bShow, UINT nStatus)
+{
+	CDialogEx::OnShowWindow(bShow, nStatus);
+
+	AnimateWindow(1000, AW_CENTER);
 }
