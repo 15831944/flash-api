@@ -33,15 +33,8 @@ protected:
 	DECLARE_MESSAGE_MAP()
 public:
 	CProgressCtrl FlashUpdateProgress;
-	afx_msg void OnBnClickedOk();
-	afx_msg void OnBnClickedAdd();
-	afx_msg void OnEnChangeLeft();
-	afx_msg void OnEnChangeResult();
-	afx_msg void OnEnChangeGoogle();
 	afx_msg void OnBnClickedStart();
-	afx_msg void OnBnClickedClose();
-	afx_msg void OnBnClickedButton2();
-	afx_msg void OnBnClickedOpendevice();
 	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 	afx_msg void OnBnClickedStartCanAnalyse();
+	afx_msg void OnBnClickedCalaulator();
 };
