@@ -78,18 +78,8 @@ BEGIN_MESSAGE_MAP(Cflash_apiDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_CLOSE, &Cflash_apiDlg::OnBnClickedClose)
 	ON_BN_CLICKED(IDC_ADD, &Cflash_apiDlg::OnBnClickedAdd)
 	ON_BN_CLICKED(ID_OPENDEVICE, &Cflash_apiDlg::OnBnClickedOpendevice)
-	ON_CBN_SELCHANGE(IDC_module_select, &Cflash_apiDlg::OnCbnSelchangemoduleselect)
-	ON_LBN_SELCHANGE(IDC_LIST1, &Cflash_apiDlg::OnLbnSelchangeList1)
-	ON_NOTIFY(NM_CUSTOMDRAW, IDC_PROGRESS1, &Cflash_apiDlg::OnNMCustomdrawProgress1)
-	ON_CBN_SELCHANGE(IDC_DSP_SELECT, &Cflash_apiDlg::OnCbnSelchangeDspSelect)
-	ON_EN_CHANGE(IDC_MFCEDITBROWSE1, &Cflash_apiDlg::OnEnChangeMfceditbrowse1)
-	ON_STN_CLICKED(IDC_OUT_TXT, &Cflash_apiDlg::OnStnClickedOutTxt)
-	ON_EN_CHANGE(IDC_OUT_TXT, &Cflash_apiDlg::OnEnChangeOutTxt)
-	ON_BN_CLICKED(IDC_BUTTON1, &Cflash_apiDlg::OnBnClickedButton1)
-	ON_EN_CHANGE(IDC_ID, &Cflash_apiDlg::OnEnChangeId)
-	ON_EN_CHANGE(IDC_DLC, &Cflash_apiDlg::OnEnChangeDlc)
-	ON_EN_CHANGE(IDC_DATA, &Cflash_apiDlg::OnEnChangeData)
 	ON_WM_SHOWWINDOW()
+	ON_BN_CLICKED(IDC_START_CAN_ANALYSE, &Cflash_apiDlg::OnBnClickedStartCanAnalyse)
 END_MESSAGE_MAP()
 
 
@@ -366,143 +356,17 @@ void Cflash_apiDlg::OnBnClickedOpendevice()
 }
 
 
-void Cflash_apiDlg::OnCbnSelchangemoduleselect()
-{
-	// TODO: 在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnLbnSelchangeList1()
-{
-	// TODO: 在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnNMCustomdrawProgress1(NMHDR *pNMHDR, LRESULT *pResult)
-{
-
-}
-
-
-
-void Cflash_apiDlg::OnCbnSelchangeDspSelect()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	FlashUpdateProgress.SetPos(100);
-}
-
-
-void Cflash_apiDlg::OnEnChangeMfceditbrowse1()
-{
-	// TODO:  如果该控件是 RICHEDIT 控件，它将不
-	// 发送此通知，除非重写 CDialogEx::OnInitDialog()
-	// 函数并调用 CRichEditCtrl().SetEventMask()，
-	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
-
-	// TODO:  在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnStnClickedOutTxt()
-{
-	// TODO: 在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnEnChangeOutTxt()
-{
-	// TODO:  如果该控件是 RICHEDIT 控件，它将不
-	// 发送此通知，除非重写 CDialogEx::OnInitDialog()
-	// 函数并调用 CRichEditCtrl().SetEventMask()，
-	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
-
-	// TODO:  在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnBnClickedButton1()
-{
-	OnOK();
-	CanAnalyse	OpenCanDevice;
-	OpenCanDevice.DoModal();
-	/*
-	FlashUpdateProgress.SetPos(50);
-	int device_type = 4;	// CANalyst-II
-	int device_ind = 0;		// first device
-	int can_ind = 0;		// CAN channel 0
-	VCI_INIT_CONFIG	vic;
-	DWORD	test;
-	VCI_CAN_OBJ	rx_msg;
-	VCI_CAN_OBJ	tx_msg;
-	vic.AccCode = 0x00000000;
-	vic.AccMask = 0xFFFFFFFF;
-	vic.Filter = 0;
-	vic.Mode = 0;
-	vic.Timing0 = 0x03;
-	vic.Timing1 = 0x1C;
-	vic.Reserved = 0;
-
-
-	VCI_Receive(device_type, device_ind, can_ind, &rx_msg, 1, 1);
-
-	CString	a;
-	a.Format(_T("0x%08x"), (int)(rx_msg.ID));
-	CString	b;
-	b.Format(_T("%02x"), (int)(rx_msg.DataLen));
-	CString	c;
-	CString d;
-
-	for (int i = 0; i < rx_msg.DataLen; ++i) {
-
-		d.Format(_T("%02x  "), rx_msg.Data[i]);
-		c += d;
-	}
-
-	SetDlgItemText(IDC_ID, a);
-	SetDlgItemText(IDC_DLC, b);
-	SetDlgItemText(IDC_DATA, c);
-	VCI_ClearBuffer(device_type, device_ind, can_ind);
-	AfxMessageBox(_T("123256456"));
-	//Sleep(10000);*/
-}
-
-
-void Cflash_apiDlg::OnEnChangeId()
-{
-	// TODO:  如果该控件是 RICHEDIT 控件，它将不
-	// 发送此通知，除非重写 CDialogEx::OnInitDialog()
-	// 函数并调用 CRichEditCtrl().SetEventMask()，
-	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
-
-	// TODO:  在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnEnChangeDlc()
-{
-	// TODO:  如果该控件是 RICHEDIT 控件，它将不
-	// 发送此通知，除非重写 CDialogEx::OnInitDialog()
-	// 函数并调用 CRichEditCtrl().SetEventMask()，
-	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
-
-	// TODO:  在此添加控件通知处理程序代码
-}
-
-
-void Cflash_apiDlg::OnEnChangeData()
-{
-	// TODO:  如果该控件是 RICHEDIT 控件，它将不
-	// 发送此通知，除非重写 CDialogEx::OnInitDialog()
-	// 函数并调用 CRichEditCtrl().SetEventMask()，
-	// 同时将 ENM_CHANGE 标志“或”运算到掩码中。
-
-	// TODO:  在此添加控件通知处理程序代码
-}
-
-
 void Cflash_apiDlg::OnShowWindow(BOOL bShow, UINT nStatus)
 {
 	CDialogEx::OnShowWindow(bShow, nStatus);
 
-	AnimateWindow(1000, AW_CENTER);
+	//AnimateWindow(1000, AW_CENTER);
+}
+
+
+void Cflash_apiDlg::OnBnClickedStartCanAnalyse()
+{
+	OnOK();
+	CanAnalyse	OpenCanDevice;
+	OpenCanDevice.DoModal();
 }
