@@ -73,6 +73,8 @@ BEGIN_MESSAGE_MAP(Cflash_apiDlg, CDialogEx)
 	ON_WM_SHOWWINDOW()
 	ON_BN_CLICKED(IDC_START_CAN_ANALYSE, &Cflash_apiDlg::OnBnClickedStartCanAnalyse)
 	ON_BN_CLICKED(ID_CALAULATOR, &Cflash_apiDlg::OnBnClickedCalaulator)
+	ON_BN_CLICKED(ID_START_NOTEPAD, &Cflash_apiDlg::OnBnClickedStartNotepad)
+	ON_BN_CLICKED(ID_START_DEVICE_MANAGER, &Cflash_apiDlg::OnBnClickedStartDeviceManager)
 END_MESSAGE_MAP()
 
 
@@ -200,5 +202,17 @@ void Cflash_apiDlg::OnBnClickedStartCanAnalyse()
 
 void Cflash_apiDlg::OnBnClickedCalaulator()
 {
-	system("calc");
+	WinExec("calc", SW_NORMAL);
+}
+
+
+void Cflash_apiDlg::OnBnClickedStartNotepad()
+{
+	WinExec("notepad", SW_NORMAL);
+}
+
+
+void Cflash_apiDlg::OnBnClickedStartDeviceManager()
+{
+	WinExec("devmgmt.msc", SW_NORMAL);
 }

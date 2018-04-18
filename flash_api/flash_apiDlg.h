@@ -37,4 +37,6 @@ public:
 	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 	afx_msg void OnBnClickedStartCanAnalyse();
 	afx_msg void OnBnClickedCalaulator();
+	afx_msg void OnBnClickedStartNotepad();
+	afx_msg void OnBnClickedStartDeviceManager();
 };
