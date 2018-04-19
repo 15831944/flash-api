@@ -32,11 +32,12 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
-	CProgressCtrl FlashUpdateProgress;
 	afx_msg void OnBnClickedStart();
 	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 	afx_msg void OnBnClickedStartCanAnalyse();
 	afx_msg void OnBnClickedCalaulator();
 	afx_msg void OnBnClickedStartNotepad();
 	afx_msg void OnBnClickedStartDeviceManager();
+	afx_msg void OnCancelMode();
+	afx_msg void OnClose();
 };

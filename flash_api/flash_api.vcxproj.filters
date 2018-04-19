@@ -39,7 +39,7 @@
     <ClInclude Include="CanAnalyse.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="FlashUpdateInv.h">
+    <ClInclude Include="FlashUpdateMain.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -56,7 +56,7 @@
     <ClCompile Include="CanAnalyse.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="FlashUpdateInv.cpp">
+    <ClCompile Include="FlashUpdateMain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -70,6 +70,15 @@
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="res\toolbar1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\icon1.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\flash_apill.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="res\CMakeLogo.ico">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

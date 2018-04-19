@@ -193,7 +193,7 @@
   <ItemGroup>
     <ClInclude Include="CanAnalyse.h" />
     <ClInclude Include="ControlCAN.h" />
-    <ClInclude Include="FlashUpdateInv.h" />
+    <ClInclude Include="FlashUpdateMain.h" />
     <ClInclude Include="flash_api.h" />
     <ClInclude Include="flash_apiDlg.h" />
     <ClInclude Include="Resource.h" />
@@ -202,7 +202,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CanAnalyse.cpp" />
-    <ClCompile Include="FlashUpdateInv.cpp" />
+    <ClCompile Include="FlashUpdateMain.cpp" />
     <ClCompile Include="flash_api.cpp" />
     <ClCompile Include="flash_apiDlg.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -216,7 +216,10 @@
     <ResourceCompile Include="flash_api.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="res\CMakeLogo.ico" />
     <Image Include="res\flash_api.ico" />
+    <Image Include="res\flash_apill.ico" />
+    <Image Include="res\icon1.ico" />
     <Image Include="res\toolbar1.bmp" />
   </ItemGroup>
   <ItemGroup>

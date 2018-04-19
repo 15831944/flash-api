@@ -8,7 +8,7 @@
 #include "afxdialogex.h"
 #include "ControlCAN.h"
 #include "CanAnalyse.h"
-#include "FlashUpdateInv.h"
+#include "FlashUpdateMain.h"
 //#pragma comment(lib, "ControlCAN.lib")
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -75,6 +75,8 @@ BEGIN_MESSAGE_MAP(Cflash_apiDlg, CDialogEx)
 	ON_BN_CLICKED(ID_CALAULATOR, &Cflash_apiDlg::OnBnClickedCalaulator)
 	ON_BN_CLICKED(ID_START_NOTEPAD, &Cflash_apiDlg::OnBnClickedStartNotepad)
 	ON_BN_CLICKED(ID_START_DEVICE_MANAGER, &Cflash_apiDlg::OnBnClickedStartDeviceManager)
+	ON_WM_CANCELMODE()
+	ON_WM_CLOSE()
 END_MESSAGE_MAP()
 
 
@@ -172,8 +174,8 @@ void Cflash_apiDlg::OnBnClickedStart()
 	/*OnOK();
 	FlashUpdateInv	FlashUpdateInv;;
 	FlashUpdateInv.DoModal();*/
-	FlashUpdateInv* dlg;
-	dlg = new FlashUpdateInv;
+	FlashUpdateMain* dlg;
+	dlg = new FlashUpdateMain;
 	dlg->Create(IDD_FLASH_UPDATE_INV); //非模态对话框ID号
 	dlg->ShowWindow(SW_SHOW);
 }
@@ -215,4 +217,21 @@ void Cflash_apiDlg::OnBnClickedStartNotepad()
 void Cflash_apiDlg::OnBnClickedStartDeviceManager()
 {
 	WinExec("devmgmt.msc", SW_NORMAL);
+}
+
+
+void Cflash_apiDlg::OnCancelMode()
+{
+	
+	CDialogEx::OnCancelMode();
+
+	
+}
+
+
+void Cflash_apiDlg::OnClose()
+{
+	if (AfxMessageBox(_T("Are you Sure?"), MB_YESNO) == IDNO)return;
+
+	CDialogEx::OnClose();
 }
