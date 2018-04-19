@@ -192,6 +192,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CanAnalyse.h" />
+    <ClInclude Include="CAN_FlashupdateMsgHandle.h" />
     <ClInclude Include="ControlCAN.h" />
     <ClInclude Include="FlashUpdateMain.h" />
     <ClInclude Include="flash_api.h" />
@@ -202,6 +203,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CanAnalyse.cpp" />
+    <ClCompile Include="CAN_FlashupdateMsgHandle.cpp" />
     <ClCompile Include="FlashUpdateMain.cpp" />
     <ClCompile Include="flash_api.cpp" />
     <ClCompile Include="flash_apiDlg.cpp" />
