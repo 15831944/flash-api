@@ -3,14 +3,7 @@
 //head files
 #include <stdio.h>
 #include <string.h>
-#include "Define.h"
-#include "TemplateCmd.h"
-#include "CAN_MsgHandle.h"
-
-#include "Recordapi.h"
-
-#include "TimerObserver.h"
-#include "CAN_Timer.h"
+#include "ControlCAN.h"
 #include "FlashUpdateMain.h"
 //-----------------------------------------------------------------------------
 //Macro definition
@@ -618,4 +611,9 @@ private:
 	UCHAR m_ucMsgClass;
 
 
+	int device_type = 4;	// CANalyst-II
+	int device_ind = 0;		// first device
+	int can_ind = 0;		// CAN channel 0
+	CAN_PACKED_PROTOCOL_U	*tx_msg;
+	CAN_PACKED_PROTOCOL_U	*rx_msg;
 };

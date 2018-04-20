@@ -200,6 +200,9 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(void)
 
 	m_pHostModuleItc = new _HOST_MODULE_ITC_T;
 	m_XmitMsg.pData = m_ucXmitMsgBuf;
+
+	tx_msg = new CAN_PACKED_PROTOCOL_U[500];
+	rx_msg = new CAN_PACKED_PROTOCOL_U[500];
 }
 
 /**********************************************************************
@@ -214,6 +217,8 @@ Postcondition:
 CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID)
 {
 	delete m_pHostModuleItc;
+	delete[]rx_msg;
+	delete[]tx_msg;
 }
 
 /**********************************************************************
@@ -282,46 +287,36 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 		//等待握手应答信号
 	case STATUS_WAITING_HANDS_RESPOND:
 		//DO NOTHING
-		HandCommRecvFcb();
+		HandCommRecvChipDecodeXmit();
 		break;
 		//等待芯片解密信号
 	case STATUS_WAITING_CHIP_DECODE:
-		//do nothing
+		ChipDecodeRecvFcb();
 		break;
 		//等待API版本确认信息
 	case STATUS_WAITING_API_VERSION:
-		//do nothing
+		
+		ApiVersionRecvFcb();
 		break;
 		//API VERSION OK
 	case STATUS_API_OK:
 		//下发擦除命令
-		m_XmitMsg.u16DestinationId = m_u16UpdaingNodeAdd;
-		m_XmitMsg.ucServiceCode = ERASE_SECTOR_SRVCODE;
-		m_XmitMsg.ucMsgClass = m_ucMsgClass;
-		m_XmitMsg.ucFrag = NONFRAG_MSG;
-		m_XmitMsg.ucRsRq = RS_MSG;
-		m_XmitMsg.ucSourceId = MAC_ID_MON;
-		CAN_MSG_Xmite(&m_XmitMsg);
+		EraseSectorXmitFcb();
 
 		break;
 		//等待擦除命令应答
 	case STATUS_FLASH_ERASE_GOING:
-
+		EraseSectorRecvFcb();
 		break;
 		//擦除成功
 	case STATUS_FLASH_ERASED:
 		//下发编程请求命令
-		m_XmitMsg.u16DestinationId = m_u16UpdaingNodeAdd;
-		m_XmitMsg.ucServiceCode = PROGRAM_SRVCODE;
-		m_XmitMsg.ucMsgClass = m_ucMsgClass;
-		m_XmitMsg.ucFrag = NONFRAG_MSG;
-		m_XmitMsg.ucRsRq = RS_MSG;
-		m_XmitMsg.ucSourceId = MAC_ID_MON;
-		CAN_MSG_Xmite(&m_XmitMsg);
+		ProgramXmitFcb();
+
 		break;
 		//等待编程允许状态
 	case STATUS_PROGRAM_PERMIT_WAITING:
-		//do nothing
+		ProgramRecvFcb();
 		break;
 		//编程允许
 	case STATUS_PROGRAM_ENABLE:
@@ -711,43 +706,27 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::HandCommXmitFcb(VOID)
 {
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
-	int device_type = 4;	// CANalyst-II
-	int device_ind = 0;		// first device
-	int can_ind = 0;		// CAN channel 0
-	CAN_PACKED_PROTOCOL_U	tx_msg;
 
 	//发握手命令
 
-	tx_msg.PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg.PackedMsg.ExternFlag = 0;// 标准帧
+	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-	tx_msg.PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;// 填写第一帧的ID
-	tx_msg.PackedMsg.b7ServiceCode = HANDS_COMM_SRVCODE;// 正常发送
-	tx_msg.PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg.PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg.PackedMsg.b1RsRq = RS_MSG;
-	tx_msg.PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg.PackedMsg.DataLen = 4;// 数据长度4个字节
-	tx_msg.PackedMsg.MsgData[0] = HAND_COMM_QUERY & 0xFF;
-	tx_msg.PackedMsg.MsgData[1] = 0xFF & (HAND_COMM_QUERY >> 8);
+	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;// 填写第一帧的ID
+	tx_msg->PackedMsg.b7ServiceCode = HANDS_COMM_SRVCODE;// 正常发送
+	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+	tx_msg->PackedMsg.b1RsRq = RS_MSG;
+	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+	tx_msg->PackedMsg.DataLen = 4;// 数据长度4个字节
+	tx_msg->PackedMsg.MsgData[0] = HAND_COMM_QUERY & 0xFF;
+	tx_msg->PackedMsg.MsgData[1] = 0xFF & (HAND_COMM_QUERY >> 8);
 
-	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg.Frame, 1);
-
-
-	//初始化数据
-	m_ulPos = 0;
-	m_uBlockAddress = 0;
-	m_uSectionAddress = 0;
-	m_wBlockLen = 0;
-
-	m_u16ResendCnt = BLOCK_RESEND_CNT;
-
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	//等待握手应答信号
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_HANDS_RESPOND;
 
-	//反馈给后台状态信息
-	m_pHostModuleItc->u16UpdateStatus[m_u16UpdatingModuleNo] = STATUS_HOST_UPDAT_ING;
 	return ucErrCode;
 }
 
@@ -760,64 +739,47 @@ Return Value:
 Precondition:
 Postcondition:
 **********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::HandCommRecvFcb(VOID)
+INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
 {
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
+
 	UINT16 u16RetrunStatus;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
-
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);;
-
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	/*
-	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	return 1;
-	}
-	*/
-	//如果进度不在等待握手应答则放弃此次接收到的握手信号
-	if (PROGRESS_IN_START != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
-
-	//握手成功
-	if (HAND_OK_RESPOND == u16RetrunStatus)
-	{
-		//置相应模块回应标志
-		SetRespondModuleFlag(m_RecvMsg.ucSourceId);
 
 
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+	for (int i = 0; i < msg_num; ++i) {
+
+		u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			//下发获取芯片解密信息
-			TempMsg.u16DestinationId = m_u16UpdaingNodeAdd;
-			TempMsg.ucServiceCode = CHIP_DECODE_SRVCODE;
-			TempMsg.ucMsgClass = m_ucMsgClass;
-			TempMsg.ucFrag = NONFRAG_MSG;
-			TempMsg.ucRsRq = RS_MSG;
-			TempMsg.ucSourceId = MAC_ID_MON;
-			CAN_MSG_Xmite(&TempMsg);
 
-			//等待解密信息反馈,启动等待延时TBD
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_CHIP_DECODE;
+			//握手成功
+			if (HAND_OK_RESPOND == u16RetrunStatus)
+			{
 
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_HAND_OK;
+				//解密命令
+
+				tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+				tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
+
+				tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;// 填写第一帧的ID
+				tx_msg->PackedMsg.b7ServiceCode = CHIP_DECODE_SRVCODE;// 正常发送
+				tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+				tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+				tx_msg->PackedMsg.b1RsRq = RS_MSG;
+				tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+				tx_msg->PackedMsg.DataLen = 2;// 数据长度4个字节
+
+				VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+				//等待解密信息反馈,启动等待延时TBD
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_CHIP_DECODE;
+
+			}
+
 		}
-		//wait othger node repond
-		else
-		{
-			;//do nothing
-		}
-
 	}
-	//擦除失败,置反馈状态字给后台TBD
-	else
-	{
-		;//
-	}
-
-
 }
 
 
@@ -836,28 +798,6 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeXmitFcb(VOID)
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
 
-	//升级与协议层交互的信息
-	m_XmitMsg.ucRsRq = RS_MSG;
-	//传送2字节
-	m_XmitMsg.u16Length = 0;
-
-	//将指针m_XmitMsg.pData也指向将要发送的数据
-	//*((UINT16 *)(m_XmitMsg.pData + 0)) = HAND_COMM_QUERY;
-
-	//启动一个超时计数器,超时后重发,可重发3次,
-	//如果重发三次失败则反馈给后台,告知升级失败
-	//TBD
-
-	//启动定时器
-	//TimerPost();
-	WaitCSMTimerPost();
-
-	//超时计数器处理
-	if (RESEND_WAITING_RESET_CNT == m_u16TimerExpiredCnt[1])
-	{
-		m_u16TimerExpiredCnt[1] = RESEND_WAITING_START_CNT;
-	}
-
 	//	FlashupdateTaskReset();
 
 	return ucErrCode;
@@ -874,72 +814,46 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
 {
+
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
+
 	UINT16 u16RetrunStatus;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
 
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);;
-
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	/*	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	return 1;
-	}
-	*/
-
-	//如果进度不在等待解密应答则放弃此次接收到的应答信号
-	if (PROGRESS_IN_HAND_OK != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
-
-	//芯片解密OK
-	if (CHIP_DECODE_SUCCESS == u16RetrunStatus)
-	{
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+	for (int i = 0; i < msg_num; ++i) {
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			//下发获取API版本信息
-			TempMsg.u16DestinationId = m_u16UpdaingNodeAdd;
-			TempMsg.ucServiceCode = API_VERSION_SRVCODE;
-			TempMsg.ucMsgClass = m_ucMsgClass;
-			TempMsg.ucFrag = NONFRAG_MSG;
-			TempMsg.ucRsRq = RS_MSG;
-			TempMsg.ucSourceId = MAC_ID_MON;
-			CAN_MSG_Xmite(&TempMsg);
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//等待API版本核对信息反馈,启动等待延时TBD
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_API_VERSION;
+			//芯片解密OK
+			if (CHIP_DECODE_SUCCESS == u16RetrunStatus)
+			{
 
-			//启动定时器
-			//TimerPost();
-			//WaitApiTimerPost();
+				//下发获取API版本信息
 
-			//关芯片解密等待定时器
-			WaitCSMTimerFlush();
+				tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+				tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-			//reset task
-			FlashupdateTaskReset();
+				tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;// 填写第一帧的ID
+				tx_msg->PackedMsg.b7ServiceCode = API_VERSION_SRVCODE;// 正常发送
+				tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+				tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+				tx_msg->PackedMsg.b1RsRq = RS_MSG;
+				tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+				tx_msg->PackedMsg.DataLen = 2;// 数据长度4个字节
 
-			//reset expired cnt
-			m_u16TimerExpiredCnt[1] = RESEND_WAITING_RESET_CNT;
+				VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+				//等待解密信息反馈,启动等待延时TBD
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_API_VERSION;
 
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_DECODE_OK;
 
+			}
 		}
 
-		//wait othger node repond
-		else
-		{
-			;//do nothing
-		}
-	}
 
-	//擦除失败,置反馈状态字给后台TBD
-	else
-	{
-		;//
 	}
-
 
 }
 
@@ -958,31 +872,6 @@ INT32 CAN_FlashupdateMsgHandle::ApiVersionXmitFcb(VOID)
 
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
-
-	//升级与协议层交互的信息
-	m_XmitMsg.ucRsRq = RS_MSG;
-	//传送2字节
-	m_XmitMsg.u16Length = 0;
-
-	//将指针m_XmitMsg.pData也指向将要发送的数据
-	//*((UINT16 *)(m_XmitMsg.pData + 0)) = HAND_COMM_QUERY;
-
-	//启动一个超时计数器,超时后重发,可重发3次,
-	//如果重发三次失败则反馈给后台,告知升级失败
-	//TBD
-
-	//启动定时器
-	//TimerPost();
-	WaitApiTimerPost();
-
-	//超时计数器处理
-	if (RESEND_WAITING_RESET_CNT == m_u16TimerExpiredCnt[2])
-	{
-		m_u16TimerExpiredCnt[2] = RESEND_WAITING_START_CNT;
-	}
-
-	//FlashupdateTaskReset();
-
 	return ucErrCode;
 }
 
@@ -999,57 +888,28 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
 {
 	UINT16 u16RetrunStatus;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
 
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);;
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	/*	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	return 1;
-	}
-	*/
+	for (int i = 0; i < msg_num; ++i) {
 
-	//如果进度不在等待API版本应答则放弃此次接收到的应答信号
-	if (PROGRESS_IN_DECODE_OK != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
-
-	//API版本核对成功
-	if (API_VESION_OK == u16RetrunStatus)
-	{
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_API_OK;
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//关闭定时器
-			WaitApiTimerFlush();
+			//API版本核对成功
+			if (API_VESION_OK == u16RetrunStatus)
+			{
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_API_OK;
 
-			//reset task
-			FlashupdateTaskReset();
+			}
 
-			//reset expired cnt
-			m_u16TimerExpiredCnt[2] = RESEND_WAITING_RESET_CNT;
-
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_APIVERSION_OK;
 
 		}
-
-		//wait othger node repond
-		else
-		{
-			;//do nothing
-		}
 	}
-
-	//擦除失败,置反馈状态字给后台TBD
-	else
-	{
-		;//
-	}
-
 
 }
 
@@ -1065,42 +925,21 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::EraseSectorXmitFcb(VOID)
 {
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-
-	//升级与协议层交互的信息
-	m_XmitMsg.ucRsRq = RS_MSG;
-	//传送2字节擦除指定扇区
-	m_XmitMsg.u16Length = 2;
-
-	//将指针m_XmitMsg.pData也指向将要发送的数据
-	if (0x95 == m_pHostModuleItc->u16FlashUpdateKernelFlag)
-	{
-		*((UINT16 *)(m_XmitMsg.pData + 0)) = ERASE_SECTOR_ALL;
-	}
-
-	else
-	{
-		*((UINT16 *)(m_XmitMsg.pData + 0)) = ERASE_SECTOR_BCD;
-	}
-
-	//启动一个超时计数器,超时后重发,可重发3次,
-	//如果重发三次失败则反馈给后台,告知升级失败
-	//TBD
-
+	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
+	tx_msg->PackedMsg.b7ServiceCode = ERASE_SECTOR_SRVCODE;
+	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+	tx_msg->PackedMsg.b1RsRq = RS_MSG;
+	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+	tx_msg->PackedMsg.DataLen = 4;
+	*((UINT16*)(tx_msg->PackedMsg.MsgData)) = ERASE_SECTOR_ALL;
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+	//下发擦除命令,等待擦除信息反馈
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_ERASE_GOING;
 
-	//启动定时器
-	//TimerPost();
-	WaitEraseTimerPost();
-
-	//超时计数器处理
-	if (RESEND_WAITING_RESET_CNT == m_u16TimerExpiredCnt[3])
-	{
-		m_u16TimerExpiredCnt[3] = RESEND_WAITING_START_CNT;
-	}
-
-	return ucErrCode;
 }
 
 /**********************************************************************
@@ -1115,58 +954,26 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::EraseSectorRecvFcb(VOID)
 {
 	UINT16 u16RetrunStatus;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
 
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);;
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	/*	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	return 1;
-	}
-	*/
+	for (int i = 0; i < msg_num; ++i) {
 
-	//如果进度不在等待API版本应答则放弃此次接收到的应答信号
-	if (PROGRESS_IN_APIVERSION_OK != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
-
-	//擦除成功,准备发编程命令
-	if (ERASE_SUCCESFULL == u16RetrunStatus)
-	{
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_ERASED;
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
+			if (ERASE_SUCCESFULL == u16RetrunStatus)
+			{
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_ERASED;
 
-			//关闭定时器
-			WaitEraseTimerFlush();
-
-			//reset task
-			FlashupdateTaskReset();
-
-			//reset expired cnt
-			m_u16TimerExpiredCnt[3] = RESEND_WAITING_RESET_CNT;
-
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_ERASE_OK;
+			}
 
 		}
 
-		//wait othger node repond
-		else
-		{
-			;//do nothing
-		}
 	}
-
-	//擦除失败TBD
-	else
-	{
-		;//
-	}
-
-
 }
 
 /**********************************************************************
@@ -1180,27 +987,21 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::ProgramXmitFcb(VOID)
 {
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-
-	//升级与协议层交互的信息
-	m_XmitMsg.ucRsRq = RS_MSG;
-
-	m_XmitMsg.u16Length = 0;
+	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
+	tx_msg->PackedMsg.b7ServiceCode = PROGRAM_SRVCODE;
+	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+	tx_msg->PackedMsg.b1RsRq = RS_MSG;
+	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+	tx_msg->PackedMsg.DataLen = 2;
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_PROGRAM_PERMIT_WAITING;
 
-	//启动定时器
-	//TimerPost();
-	WaitProgramEnableTimerPost();
 
-	//超时计数器处理
-	if (RESEND_WAITING_RESET_CNT == m_u16TimerExpiredCnt[4])
-	{
-		m_u16TimerExpiredCnt[4] = RESEND_WAITING_START_CNT;
-	}
-
-	return ucErrCode;
 }
 
 /**********************************************************************
@@ -1215,87 +1016,33 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::ProgramRecvFcb(VOID)
 {
 	UINT16 u16RetrunStatus;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
 
-	UINT16 j;
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);
-	//for test
-	printf("Flash update: Recv program permit1,\n");
+	for (int i = 0; i < msg_num; ++i) {
 
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	/*	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	//for test
-	printf("Flash update: Recv program permit12,\n");
-	//return 1;
-	ResendOneBlock();
-
-	}
-	*/
-
-	//如果进度不合法则放弃此次接收到的应答信号
-	if (PROGRESS_IN_ERASE_OK != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
-
-	//允许编程,准备发数据头信息
-	if (PROGRAM_ENABLE == u16RetrunStatus)
-	{
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_PROGRAM_ENABLE;
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//			m_u16ResendCnt = BLOCK_RESEND_CNT;
 
-			//关闭定时器
-			WaitProgramEnableTimerFlush();
+			if (PROGRAM_ENABLE == u16RetrunStatus)
+			{
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_PROGRAM_ENABLE;
 
-			//for test
-			printf("Flash update: Recv program permit succesful,\n");
+			}
 
-			//reset task
-			FlashupdateTaskReset();
+			//擦除失败TBD
+			else if(PROGRAM_DIABLE == u16RetrunStatus)
+			{
 
-			//reset expired cnt
-			m_u16TimerExpiredCnt[4] = RESEND_WAITING_RESET_CNT;
+			}
 
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_PROG_ENA_OK;
-		}
-
-		//wait othger node repond
-		else
-		{
-			;//do nothing
 		}
 	}
-
-	//擦除失败TBD
-	else
-	{
-		//for test
-		printf("Flash update: Recv program permit123,\n");
-		//ResendOneBlock();
-		//--20100408:直接退出--
-		m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
-		//升级进度标志复位
-		m_u16ProgramPorcess = PROGRESS_IN_RESET;
-
-		//返回给后台失败信息
-		for (j = 0; j<11; j++)
-		{
-			m_pHostModuleItc->u16UpdateStatus[j] = STATUS_HOST_UPDATE_FAIL;
-		}
-
-		for (j = 0; j<TIMER_CNT_LEN; j++)
-		{
-			m_u16TimerExpiredCnt[j] = RESEND_WAITING_RESET_CNT;
-		}
-	}
-
-
 }
 
 /**********************************************************************
