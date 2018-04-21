@@ -62,9 +62,6 @@
     <ClCompile Include="FlashUpdateMain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="CAN_FlashupdateMsgHandle.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="flash_api.rc">

@@ -203,7 +203,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CanAnalyse.cpp" />
-    <ClCompile Include="CAN_FlashupdateMsgHandle.cpp" />
     <ClCompile Include="FlashUpdateMain.cpp" />
     <ClCompile Include="flash_api.cpp" />
     <ClCompile Include="flash_apiDlg.cpp" />

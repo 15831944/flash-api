@@ -3,8 +3,12 @@
 //head files
 #include <stdio.h>
 #include <string.h>
-#include "ControlCAN.h"
+#include "stdafx.h"
+#include "flash_api.h"
 #include "FlashUpdateMain.h"
+#include "afxdialogex.h"
+#include "flash_apiDlg.h"
+#include "ControlCAN.h"
 //-----------------------------------------------------------------------------
 //Macro definition
 //sevice code denfine
@@ -446,6 +450,16 @@ typedef union CAN_PACKED_PROTOCOL_STRUCT
 		BYTE	Reserved[3];
 	}PackedMsg;
 }CAN_PACKED_PROTOCOL_U;
+
+typedef struct {
+
+	UINT16	BlockCount;
+	UINT16	EveryBlockDataNum[100];
+	UINT16	BlockCheckSum[100];
+	UINT16	BlockSize[100];
+	UINT16	BlockData[100][1024];
+	UINT16	BlockAddress[100][2];
+}BLOCK_MESSAGE_PACKED;
 //各变量所对应的service code 配置文件给定
 /*
 typedef struct
@@ -482,7 +496,7 @@ public:
 
 	//---------------------------------
 	INT32 HandCommXmitFcb(VOID);
-	INT32 HandCommRecvFcb(VOID);
+	INT32 HandCommRecvChipDecodeXmit(VOID);
 	INT32 ChipDecodeXmitFcb(VOID);
 	INT32 ChipDecodeRecvFcb(VOID);
 	INT32 ApiVersionXmitFcb(VOID);
@@ -516,11 +530,7 @@ public:
 
 private:
 
-	//	INT32 GetOffset(IN UCHAR ucServiceCode,  IN _MON_SET_PARA_MAP_T *pSourceTable,
-	//															IN UCHAR ucMaxCnt);
-	VOID TimeConvert(OUT DATE_TIME_T * pCalendar,
-		IN INT32 i32Seconds,
-		IN UINT16 u16MilliSeconds);
+
 
 	VOID AutoSyncTimeMsgGen(VOID);
 
@@ -616,4 +626,14 @@ private:
 	int can_ind = 0;		// CAN channel 0
 	CAN_PACKED_PROTOCOL_U	*tx_msg;
 	CAN_PACKED_PROTOCOL_U	*rx_msg;
+
+	BLOCK_MESSAGE_PACKED	BlockMessage;
+
+	UINT32	BlockMessageProcess_Packaged(void);
+
+	UINT16	BlockCount;
+	UINT16	EveryBlockDataNum[100];
+	UINT16	BlockCheckSum[100];
+	UINT16	BlockData[100][1024];
+	UINT16	BlockAddress[100][2];
 };

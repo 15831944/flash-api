@@ -319,133 +319,13 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 		ProgramRecvFcb();
 		break;
 		//编程允许
-	case STATUS_PROGRAM_ENABLE:
-		//读section
-		//for test
-		printf("Flash update: Read a section from target file\n");
-		//--------------------------------------
-		//首先读一个Section相关信息
-		//从总的缓冲区中指定位置开始读出一个BLOCK的信息
-		//首先要计算BLOCK的大小
-		//ReadASection(m_byBuff, m_ulPos, m_wSectionLen, m_uSectionAddress, m_ucSectionBuff);
-		ReadASection(cFlashUpdateBuf, m_ulPos, m_wSectionLen, m_uSectionAddress, m_ucSectionBuff);
-
-		printf("Read section:m_ulPos=%x, m_wSectionLen=%x,m_uSectionAddress=%x\n", m_ulPos, m_wSectionLen, m_uSectionAddress);
-
-		printf("Flash update: Read a section from target file--over\n");
-		//-----------------------------------------------------
-		/*
-		//only for test
-		if (0 == ucTestFlag)
-		{
-		for (UINT16 j=0; j<72;j++)
-		m_ucSectionBuff[j] = ucFlashUpdateTestData[j];
-
-		m_wSectionLen = 36;
-		m_uSectionAddress = 0x3e8100;
-		ucTestFlag = 1;
-		}
-		else
-		{
-		m_wSectionLen = 0;
-		}
-		*/
-
-		//------------------------------------------------------
-
-		//计算本次SECTION共划分多少个BLOCK
-		m_u16BlockNumOfSection = m_wSectionLen / BLOCK_SIZE;
-
-		//section 中剩余的字数
-		if (m_wSectionLen>(m_u16BlockNumOfSection*BLOCK_SIZE))
-		{
-			m_u16RemainWordOfSection = m_wSectionLen - m_u16BlockNumOfSection * BLOCK_SIZE;
-			//剩余BLOCK的帧数
-			if (m_u16RemainWordOfSection % 3)
-			{
-				m_u16FrameNumOfRemainBlock = m_u16RemainWordOfSection / 3 + 1;
-				//剩余BLOCK中最后一帧字的个数
-				m_u16LastFrameWordNumOfRemainBlock = m_u16RemainWordOfSection - (m_u16RemainWordOfSection / 3) * 3;
-			}
-
-			else
-			{
-				m_u16FrameNumOfRemainBlock = m_u16RemainWordOfSection / 3;
-				//剩余BLOCK中最后一帧字的个数
-				m_u16LastFrameWordNumOfRemainBlock = NON_LAST_FRAME_WORD_NUM_ONE_BLOCK;
-			}
-
-
-			//本次SECTION总共的BLOCK数
-			m_u16BlockNumOfSection = m_u16BlockNumOfSection + 1;
-		}
-
-		//结束,长度为0
-		else if (0 == m_wSectionLen)
-		{
-			m_u16RemainWordOfSection = 0;
-			m_u16FrameNumOfRemainBlock = 0;
-
-			//置读取HEX文件结束标志
-			m_u16ReadHexFileEnd = READ_HEX_END_FLAG_VALID;
-
-		}
-
-		//整除且长度不为0,则最后一个BLOCK也是1024
-		else
-		{
-			m_u16RemainWordOfSection = BLOCK_SIZE;
-			m_u16FrameNumOfRemainBlock = FRAME_ALL_NUM_ONE_BLOCK;
-			m_u16LastFrameWordNumOfRemainBlock = LAST_FRAME_WORD_NUM_ONE_BLOCK;
-		}
-
-		/*
-		//本次SECTION 超过了1024字
-		if (m_u16BlockNumOfSection > 0)
-		{
-		//一个完整的BLOCK需要分的帧数
-		m_u16FrameNumOneBlock = FRAME_ALL_NUM_ONE_BLOCK;
-
-		}
-
-		else
-		{
-		m_u16FrameNumOneBlock = m_u16FrameNumOfRemainBlock;
-		}
-		*/
-		//首次的BLOCK地址就是SECTION地址
-		m_uBlockAddress = m_uSectionAddress;
-
-
-		//每读一次SECTON,当前BLOCK都应该初始化成0
-		//其范围为[0,m_u16BlockNumOfSection),其中最大值m_u16BlockNumOfSection为一个少于1024字的BLOCK
-		m_u16CurrentBlockNum = 0;
-
-
-		//m_u16FrameNumOneBlock = m_wBlockLen/3;
-		//m_u16LastFrameWordNumOneBlock = m_u16FrameNumOneBlock*3;
-
-		//m_u16CurrentFrameNum范围为0~m_u16FrameNumOneBlock
-		m_u16CurrentFrameNum = 0;
-
-		//--------------------------------------
-
+	case STATUS_PROGRAM_ENABLE:		
 		//下发BLOCK头
-		m_XmitMsg.u16DestinationId = m_u16UpdaingNodeAdd;
-		m_XmitMsg.ucServiceCode = BLOCK_HEAD_SRVCODE;
-		m_XmitMsg.ucMsgClass = m_ucMsgClass;
-		m_XmitMsg.ucFrag = NONFRAG_MSG;
-		m_XmitMsg.ucRsRq = RS_MSG;
-		m_XmitMsg.ucSourceId = MAC_ID_MON;
-
-		CAN_MSG_Xmite(&m_XmitMsg);
-
-		m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_WAITING;
+		BlockHeadXmitFcb();
 		break;
-
 		//头BLOCK传输中
 	case STATUS_BLOCK_HEAD_WAITING:
-		//do nothing
+		BlockHeadRecvFcb();
 		break;
 		//下一个BLOCK头
 	case STATUS_NEXT_BLOCK_HEAD:
@@ -764,13 +644,13 @@ INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
 				tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
 				tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-				tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;// 填写第一帧的ID
-				tx_msg->PackedMsg.b7ServiceCode = CHIP_DECODE_SRVCODE;// 正常发送
+				tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
+				tx_msg->PackedMsg.b7ServiceCode = CHIP_DECODE_SRVCODE;
 				tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
 				tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
 				tx_msg->PackedMsg.b1RsRq = RS_MSG;
 				tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-				tx_msg->PackedMsg.DataLen = 2;// 数据长度4个字节
+				tx_msg->PackedMsg.DataLen = 2;
 
 				VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 				//等待解密信息反馈,启动等待延时TBD
@@ -1191,7 +1071,7 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
 
 
 /**********************************************************************
-BlockHeadXmitFcb-----下传BLOCK数据
+BlockHeadXmitFcb-----下传BLOCK大小及地址
 
 Parameters:
 
@@ -1202,91 +1082,29 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::BlockHeadXmitFcb(VOID)
 {
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
-	UINT16 u16BlockLen;
-	UINT32 u32BlockAddr;
+	CHAR* BlcokHead;
 
-	//for test
-	printf("Flash update: Send head--m_u16CurrentBlockNum=%d,m_u16BlockNumOfSection=%d\n", m_u16CurrentBlockNum, m_u16BlockNumOfSection);
 
-	//取当前待传的BLOCK的长度和地址
-	if (m_u16CurrentBlockNum >= (m_u16BlockNumOfSection - 1))
-	{
-		u16BlockLen = m_u16RemainWordOfSection;
-		//总的帧数
-		m_u16FrameNumOneBlock = m_u16FrameNumOfRemainBlock;
-		//最后一帧字的个数
-		m_u16LastFrameWordNumOneBlock = m_u16LastFrameWordNumOfRemainBlock;
 
-		//本次BLOCK的校验和
-		//m_u32CheckSumOneBlock = CheckSum(u16BlockLen, m_uBlockAddress, m_ucSectionBuff);
-		m_u32CheckSumOneBlock
-			= CheckSum(u16BlockLen, m_uBlockAddress, (m_ucSectionBuff + m_u16CurrentBlockNum * BLOCK_SIZE * 2));
+
+
+	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
+
+	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
+	tx_msg->PackedMsg.b7ServiceCode = BLOCK_HEAD_SRVCODE;
+	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+	tx_msg->PackedMsg.b1RsRq = RS_MSG;
+	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+	tx_msg->PackedMsg.DataLen = 8;
+
+	for (int i = 0; i < 6; ++i) {
+
+		tx_msg->PackedMsg.MsgData[i] = BlcokHead[i];
 	}
-
-	else
-	{
-		//1024字
-		u16BlockLen = BLOCK_SIZE;
-		//一个完整的BLOCK需要分的帧数
-		m_u16FrameNumOneBlock = FRAME_ALL_NUM_ONE_BLOCK;
-		//最后一帧字的个数
-		m_u16LastFrameWordNumOneBlock = LAST_FRAME_WORD_NUM_ONE_BLOCK;
-
-		//本次BLOCK的校验和
-		m_u32CheckSumOneBlock
-			= CheckSum(u16BlockLen, m_uBlockAddress, (m_ucSectionBuff + m_u16CurrentBlockNum * BLOCK_SIZE * 2));
-	}
-
-	//当前帧号
-	m_u16CurrentFrameNum = 0;
-
-	//BLOCK地址
-	u32BlockAddr = m_uBlockAddress;
-
-
-	//升级与协议层交互的信息
-	m_XmitMsg.ucRsRq = RS_MSG;
-	//传送6字节信息头
-	m_XmitMsg.u16Length = 6;
-
-	//for test
-	printf("Flash update: Send head--u16BlockLen=%d,u32BlockAddr=%d\n", u16BlockLen, u32BlockAddr);
-
-	//将指针m_XmitMsg.pData也指向将要发送的数据
-	//数据来源取自后台下传的DATA TBD
-	*((UINT16 *)(m_XmitMsg.pData + 0)) = u16BlockLen;
-	//*((UINT32 *)(m_XmitMsg.pData + 2)) = u32BlockAddr;
-	*((UINT16 *)(m_XmitMsg.pData + 2)) = (UINT16)(u32BlockAddr & 0x0ffff);
-	*((UINT16 *)(m_XmitMsg.pData + 4)) = (UINT16)((u32BlockAddr >> 16) & 0x0ffff);
-
-	WaitHeadRespondTimerPost();
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_WAITING;
-
-	//for test
-	printf("Flash update: Send one block head\n");
-	printf("Flash update: Send head--m_u16FrameNumOneBlock=%d\n", m_u16FrameNumOneBlock);
-
-	/*
-	//表示结束
-	if (0 == m_wBlockLen)
-	{
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_DATATRANS_END;
-	}
-
-	else
-	{
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_WAITING;
-	//开始计算下发数据的累加和校验码TBD
-	//m_u16BlockChecksum = m_wBlockLen+m_uBlockAddress;
-	}
-
-	*/
-
-	//超时计数器处理
-	if (RESEND_WAITING_RESET_CNT == m_u16TimerExpiredCnt[5])
-	{
-		m_u16TimerExpiredCnt[5] = RESEND_WAITING_START_CNT;
-	}
 
 	return ucErrCode;
 }
@@ -1303,163 +1121,44 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::BlockHeadRecvFcb(VOID)
 {
 	UINT16 u16RetrunStatus;
-	UINT16 j;
-	CAN_XMIT_QUEUE_MSG_T TempMsg;
 
-	u16RetrunStatus = *(UINT16 *)(m_RecvMsg.pData);
-	//for test
-	printf("Flash update: Recv one block head respond\n");
-	/*
-	//如果收到的反馈擦除应答信息不对退出,如何处理TBD
-	if (m_u16UpdaingNodeAdd != m_RecvMsg.ucSourceId)
-	{
-	return 1;
-	}
-	*/
-	//如果进度不合法则放弃此次接收到的应答信号
-	if (PROGRESS_IN_PROG_ENA_OK != m_u16ProgramPorcess)
-	{
-		return 1;
-	}
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	if (msg_num == 0)return;
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	//允许传有效数据,准备发数据信息
-	if (BLOCK_HEAD_OK == u16RetrunStatus)
-	{
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
+	for (int i = 0; i < msg_num; ++i) {
+
+		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
 		{
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_OK;
-			//			m_u16ResendCnt = BLOCK_RESEND_CNT;
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//关闭定时器
-			WaitHeadRespondTimerFlush();
 
-			//reset task
-			FlashupdateTaskReset();
-
-			//reset expired cnt
-			m_u16TimerExpiredCnt[5] = RESEND_WAITING_RESET_CNT;
-
-			//升级进度标志
-			m_u16ProgramPorcess = PROGRESS_IN_HEADRESPOND_OK;
-
-			//for test
-			printf("Flash update: Recv one block head respond=0\n");
-		}
-	}
-
-	//文件传输结束
-	else if (FILE_TRANS_END == u16RetrunStatus)
-	{
-		//如果DSP反馈升级成功信息,同时需与监控自身标志核对,
-		//如果监控标志表示文件的确传完才认为结束并报成功
-		//监控本身认为HEX文件还没传完,则报失败
-		if (READ_HEX_END_FLAG_VALID != m_u16ReadHexFileEnd)
-		{
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
-			//升级进度标志复位
-			m_u16ProgramPorcess = PROGRESS_IN_RESET;
-
-			//返回给后台失败信息
-			for (j = 0; j<11; j++)
+			//允许传有效数据,准备发数据信息
+			if (BLOCK_HEAD_OK == u16RetrunStatus)
 			{
-				m_pHostModuleItc->u16UpdateStatus[j] = STATUS_HOST_UPDATE_FAIL;
+
+				m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_OK;
+
+
 			}
 
-			for (j = 0; j<TIMER_CNT_LEN; j++)
+			//文件传输结束
+			else if (FILE_TRANS_END == u16RetrunStatus)
 			{
-				m_u16TimerExpiredCnt[j] = RESEND_WAITING_RESET_CNT;
+				//如果DSP反馈升级成功信息,同时需与监控自身标志核对,
+				//如果监控标志表示文件的确传完才认为结束并报成功
+				//监控本身认为HEX文件还没传完,则报失败
+				if (READ_HEX_END_FLAG_VALID != m_u16ReadHexFileEnd)
+				{
+					m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
+					//升级进度标志复位
+					m_u16ProgramPorcess = PROGRESS_IN_RESET;
+
+				}
+
 			}
-
-			//直接退出
-			return 1;
 		}
-
-
-		//升级完成了一个模块
-		//反馈给后台状态信息
-		//旁路
-		if (0x0f == m_RecvMsg.ucSourceId)
-		{
-
-			m_pHostModuleItc->u16UpdateStatus[0] = STATUS_HOST_UPDATE_SUCCESFULL;
-
-		}
-
-		else if ((0x20 <= m_RecvMsg.ucSourceId) && (0x29 >= m_RecvMsg.ucSourceId))
-		{
-			m_pHostModuleItc->u16UpdateStatus[m_RecvMsg.ucSourceId - 0x20 + 1] = STATUS_HOST_UPDATE_SUCCESFULL;
-		}
-
-		else if ((0x10 <= m_RecvMsg.ucSourceId) && (0x19 >= m_RecvMsg.ucSourceId))
-		{
-			m_pHostModuleItc->u16UpdateStatus[m_RecvMsg.ucSourceId - 0x10 + 1] = STATUS_HOST_UPDATE_SUCCESFULL;
-		}
-
-		//do nothing
-		else
-		{
-
-		}
-
-
-		//是否所有的模块都升级完毕
-		//if (0 == FlashupdateNodeGet())
-		if (0 == FlashupdateTaskHandle(m_RecvMsg.ucSourceId))
-		{
-			//m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_VERIFYING;
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
-
-			//升级进度标志复位
-			m_u16ProgramPorcess = PROGRESS_IN_RESET;
-
-			//反馈给后台状态信息
-			//m_pHostModuleItc->u16UpdateStatus[m_u16UpdatingModuleNo] = STATUS_HOST_UPDATE_SUCCESFULL;
-
-			//reset task
-			FlashupdateTaskReset();
-
-			//			m_u16ResendCnt = BLOCK_RESEND_CNT;
-
-			//关闭定时器
-			WaitHeadRespondTimerFlush();
-
-			//reset expired cnt
-			m_u16TimerExpiredCnt[5] = RESEND_WAITING_RESET_CNT;
-
-		}
-		/*
-		//one by one 下一个节点
-		else
-		{
-		//m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_VERIFYING;
-		m_pHostModuleItc->u16FlashupdateStatus = STATUS_SELCET_NODE;
-
-		//反馈给后台状态信息
-		m_pHostModuleItc->u16UpdateStatus[m_u16UpdatingModuleNo] = STATUS_HOST_UPDAT_ING;
-		}
-
-		m_u16ResendCnt = BLOCK_RESEND_CNT;
-
-		//关闭定时器
-		WaitHeadRespondTimerFlush();
-		*/
-		//for test
-		printf("Flash update: Recv one block head respond=5\n");
-	}
-
-	//需重发TBD
-	else
-	{
-		//关闭定时器
-		WaitHeadRespondTimerFlush();
-
-		//reset task
-		FlashupdateTaskReset();
-
-		//reset expired cnt
-		m_u16TimerExpiredCnt[5] = RESEND_WAITING_RESET_CNT;
-
-		ResendOneBlock();
 	}
 
 }
@@ -2498,3 +2197,105 @@ VOID CAN_FlashupdateMsgHandle::ResendOneBlock(VOID)
 	}
 }
 
+
+
+
+
+
+
+
+UINT32 CAN_FlashupdateMsgHandle::BlockMessageProcess_Packaged(void)
+{
+
+#define RECORD_TYPE_OFFSET	3
+#define	DATA_OFFSET	4
+#define	HIGH_16BIT_ADDRESS_RECORD_TYPE	0x04
+#define	DATA_DEFINICATION	0x00
+#define DATA_END_RECORD_TYPE	0x01
+	if (IDNO == AfxMessageBox(_T("Are you sure Flashupdate?"), MB_YESNO))return;
+	//WinExec("hex2000.exe --memwidth=16 --romwidth=16 --intel -o G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.hex  G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.out", SW_NORMAL);
+	//system("hex2000.exe --memwidth=16 --romwidth=16 --intel -o G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.hex  G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.out");
+	//system("del 28377D_INV.hex");
+
+	CFile	file;
+	CFile	wfile;
+	CFileException ex;
+	CString filepath;
+	UINT16	check_every_block_size;
+	BYTE	check_low16_address;
+
+	GetDlgItemText(IDC_MFCEDITBROWSE1, filepath);
+	if (!file.Open(filepath, CFile::modeRead | CFile::shareDenyWrite, &ex)) {
+
+		MessageBox(_T("请检查待升级文件！"), _T("警告"), MB_OK | MB_ICONQUESTION);
+		return;
+	}
+	DWORD file_length = (DWORD)file.GetLength();
+	char *p = new char[file_length];
+	file.Read(p, file_length);
+	file.Close();
+	while (transfer_data.next_data_head < file_length) {
+		for (DWORD i = transfer_data.next_data_head; i < file_length; ++i) {
+
+			if (p[i] == ':') {
+				transfer_data.data_head = i + 1;
+			}
+			if (p[i] == '\r') {
+				transfer_data.data_trail = i - 1;
+				transfer_data.next_data_head = i + 2;
+				transfer_data.data_count = transfer_data.data_trail - transfer_data.data_head + 1;
+				break;
+			}
+
+		}
+		// Record Type( 00, 04, 01)
+		if (p[transfer_data.data_head + RECORD_TYPE_OFFSET] == HIGH_16BIT_ADDRESS_RECORD_TYPE) {
+
+			BlockAddress[BlockCount][1] = (((UINT16)(p[transfer_data.data_head + 4])) << 8) |
+											(((UINT16)(p[transfer_data.data_head + 5])));
+			
+		}
+		else if(p[transfer_data.data_head + RECORD_TYPE_OFFSET] == DATA_END_RECORD_TYPE){
+
+			break;
+
+		}
+		else {
+
+			check_every_block_size = EveryBlockDataNum[BlockCount] + (UINT16)p[transfer_data.data_head];
+			if (BlockCount == 0) {
+
+				BlockAddress[BlockCount][0] = (((UINT16)(p[transfer_data.data_head + 1])) << 8) |
+												(((UINT16)(p[transfer_data.data_head + 2])));
+			}
+			if (check_every_block_size > 2048{
+				BlockCount++;
+				BlockAddress[BlockCount][0] = (((UINT16)(p[transfer_data.data_head + 1])) << 8) |
+												(((UINT16)(p[transfer_data.data_head + 2])));
+			}
+			else if (check_low16_address != p[transfer_data.data_head + 2]) {
+
+				BlockCount++;
+				BlockAddress[BlockCount][0] = (((UINT16)(p[transfer_data.data_head + 1])) << 8) |
+												(((UINT16)(p[transfer_data.data_head + 2])));
+			}
+			for (int j = transfer_data.data_head + DATA_OFFSET; j < transfer_data.data_trial; ++j) {
+
+				if (j % 2) {
+
+					BlockData[BlockCount][EveryBlockDataNum[BlockCount]] |= ((UINT16)p[j])<<8;
+					EveryBlockDataNum[BlockCount]++;
+				}
+				else {
+
+					BlockData[BlockCount][EveryBlockDataNum[BlockCount]] = (UINT16)p[j];
+				}
+			}
+
+		}
+
+		check_low16_address = p[transfer_data.data_head] + p[transfer_data.data_head+2];
+	}
+
+	delete[]p;
+}
