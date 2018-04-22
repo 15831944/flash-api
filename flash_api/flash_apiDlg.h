@@ -40,4 +40,5 @@ public:
 	afx_msg void OnBnClickedStartDeviceManager();
 	afx_msg void OnCancelMode();
 	afx_msg void OnClose();
+	afx_msg void OnBnClickedParameterWatch();
 };

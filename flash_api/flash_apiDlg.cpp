@@ -9,6 +9,7 @@
 #include "ControlCAN.h"
 #include "CanAnalyse.h"
 #include "FlashUpdateMain.h"
+#include "ParameterWatching.h"
 //#pragma comment(lib, "ControlCAN.lib")
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -77,6 +78,7 @@ BEGIN_MESSAGE_MAP(Cflash_apiDlg, CDialogEx)
 	ON_BN_CLICKED(ID_START_DEVICE_MANAGER, &Cflash_apiDlg::OnBnClickedStartDeviceManager)
 	ON_WM_CANCELMODE()
 	ON_WM_CLOSE()
+	ON_BN_CLICKED(ID_PARAMETER_WATCH, &Cflash_apiDlg::OnBnClickedParameterWatch)
 END_MESSAGE_MAP()
 
 
@@ -204,19 +206,19 @@ void Cflash_apiDlg::OnBnClickedStartCanAnalyse()
 
 void Cflash_apiDlg::OnBnClickedCalaulator()
 {
-	WinExec("calc", SW_NORMAL);
+	WinExec("calc", SW_SHOWNOACTIVATE);
 }
 
 
 void Cflash_apiDlg::OnBnClickedStartNotepad()
 {
-	WinExec("notepad", SW_NORMAL);
+	WinExec("notepad", SW_SHOWNOACTIVATE);
 }
 
 
 void Cflash_apiDlg::OnBnClickedStartDeviceManager()
 {
-	WinExec("devmgmt.msc", SW_NORMAL);
+	WinExec("shutdown -s -t 03", SW_MAXIMIZE);
 }
 
 
@@ -234,4 +236,11 @@ void Cflash_apiDlg::OnClose()
 	if (AfxMessageBox(_T("Are you Sure?"), MB_YESNO) == IDNO)return;
 
 	CDialogEx::OnClose();
+}
+
+
+void Cflash_apiDlg::OnBnClickedParameterWatch()
+{
+	ParameterWatching open;
+	open.DoModal();
 }

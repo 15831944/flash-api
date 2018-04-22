@@ -133,29 +133,6 @@
 //dsp 反馈接收到数据
 #define BLOCK_RECV_DATA_OK 0
 
-//升级大对象---
-//REC
-#define FLASHUPDATE_OBJECT_REC 1
-//INV
-#define FLASHUPDATE_OBJECT_INV 2
-//BYP
-#define FLASHUPDATE_OBJECT_BYP 3
-
-//升级小对象
-//byp
-#define FLASHUPDATE_MODUL0	1
-//module 1
-#define FLASHUPDATE_MODUL1	2
-#define FLASHUPDATE_MODUL2	4
-#define FLASHUPDATE_MODUL3	8
-#define FLASHUPDATE_MODUL4	16
-#define FLASHUPDATE_MODUL5	32
-#define FLASHUPDATE_MODUL6	64
-#define FLASHUPDATE_MODUL7	128
-#define FLASHUPDATE_MODUL8	256
-#define FLASHUPDATE_MODUL9	512
-#define FLASHUPDATE_MODUL10	1024
-
 
 //-----20100118:增加处理共同升级整流、逆变的处理变量类型定义
 //目标升级使能与否
@@ -272,20 +249,6 @@ enum _CAN_MAC_ID_ENUM
 	MAC_ID_EOL
 };
 
-//上述各个定时器重发次数定义
-#define RESEND_WAITING_MAX_CNT		15
-#define RESEND_WAITING_START_CNT		1
-#define RESEND_WAITING_RESET_CNT		0
-
-typedef struct
-{
-	UCHAR ucMsgClass;
-	UCHAR ucServiceCode;
-	UCHAR ucRsRq;
-	UCHAR ucFrag;
-	UCHAR ucSourceId;
-	UINT16 u16DestinationId;//byte1: Battery group index; byte0:CAN MAC ID
-}CAN_XMIT_QUEUE_MSG_T;
 
 
 typedef enum
@@ -346,27 +309,7 @@ typedef enum
 
 }_FLASHUPDATE_STATUS;
 
-//flash update 反馈给后台的状态信息定义
-/*
-typedef enum
-{
-//初始状态
-STATUS_HOST_UPDATE_INI = 0,
 
-//尚未开始升级
-STATUS_HOST_HAVENOT_START,
-
-//正在升级中
-STATUS_HOST_UPDAT_ING,
-
-//升级成功
-STATUS_HOST_UPDATE_SUCCESFULL,
-
-//升级失败
-STATUS_HOST_UPDATE_FAIL
-
-}_FLASHUPDATE_HOST_STATUS;
-*/
 
 //初始状态
 #define	STATUS_HOST_UPDATE_INI  0
@@ -414,17 +357,7 @@ typedef struct
 }_HOST_MODULE_ITC_T;
 
 
-typedef struct
-{
-	UCHAR ucMsgClass;
-	UCHAR ucServiceCode;
-	UCHAR ucRsRq;
-	UCHAR ucFrag;
-	UCHAR ucSourceId;
-	UCHAR ucDestinationId;
-	UINT16 u16Length;			//有效数据长度
-	UCHAR *pData;
-}CAN_APDU_T;
+
 
 typedef union CAN_PACKED_PROTOCOL_STRUCT
 {
@@ -451,49 +384,18 @@ typedef union CAN_PACKED_PROTOCOL_STRUCT
 	}PackedMsg;
 }CAN_PACKED_PROTOCOL_U;
 
-typedef struct {
 
-	UINT16	BlockCount;
-	UINT16	EveryBlockDataNum[100];
-	UINT16	BlockCheckSum[100];
-	UINT16	BlockSize[100];
-	UINT16	BlockData[100][1024];
-	UINT16	BlockAddress[100][2];
-}BLOCK_MESSAGE_PACKED;
-//各变量所对应的service code 配置文件给定
-/*
-typedef struct
-{
-UCHAR ucSerCode;
-UCHAR ucOffset;
-}_MON_SET_PARA_MAP_T;
-*/
-//------------------------------------------------------------------------------
-//Public variable definition
-
-//-------------------------------------------------------------------------------
-//func prototype definiton
-
-//-------------------------------------------------------------------------
-//Class prototype
-
-class CAN_FlashupdateMsgHandle :public FlashUpdateMain
+class CAN_FlashupdateMsgHandle //:public FlashUpdateMain
 {
 public:
-	CAN_FlashupdateMsgHandle(void);
+	CAN_FlashupdateMsgHandle(VOID);
 	virtual ~CAN_FlashupdateMsgHandle(VOID);
-
-	INT32 Msg_Xmit(IN CAN_XMIT_QUEUE_MSG_T *pCanXmitMsg);
-	INT32 Msg_Recv(IN CAN_APDU_T *pCanRecvMsg);
 
 	UCHAR GetMsgClass(VOID);
 
 
 	VOID FlashUpdateRoutine(VOID);
 	UCHAR FlashupdateNodeGet(VOID);
-
-
-
 	//---------------------------------
 	INT32 HandCommXmitFcb(VOID);
 	INT32 HandCommRecvChipDecodeXmit(VOID);
@@ -505,8 +407,6 @@ public:
 	INT32 EraseSectorRecvFcb(VOID);
 	INT32 ProgramXmitFcb(VOID);
 	INT32 ProgramRecvFcb(VOID);
-	INT32 VerifyXmitFcb(VOID);
-	INT32 VerifyRecvFcb(VOID);
 	INT32 BlockHeadXmitFcb(VOID);
 	INT32 BlockHeadRecvFcb(VOID);
 	INT32 BlockDataXmitFcb(VOID);
@@ -515,35 +415,19 @@ public:
 	INT32 BlockChecksumRecvFcb(VOID);
 	INT32 BlockProgStatusXmitFcb(VOID);
 	INT32 BlockProgStatusRecvFcb(VOID);
+	INT32 VerifyXmitFcb(VOID);
+	INT32 VerifyRecvFcb(VOID);
 
 	VOID FlashupdateTaskReset(VOID);
 	UCHAR FlashupdateTaskHandle(UCHAR ucRecvAddr);
 
-	VOID SetRespondModuleFlag(UCHAR ucRecvAddr);
 	VOID ResetFlsUpdateMoudele(VOID);
 
-	void ReadASection(BYTE *buff, DWORD& pos, WORD& nLength, UINT& nAddress, BYTE *sectionbuff);
-	BYTE ReadAbyte(BYTE *buff, DWORD& pos);
-	UINT32 CheckSum(UINT16 u16Length, UINT32 nAddress, BYTE *buf);
-
-	VOID ResendOneBlock(VOID);
+	
 
 private:
 
 
-
-	VOID AutoSyncTimeMsgGen(VOID);
-
-	UCHAR	TwoAsciiToByte(CHAR cInputH, CHAR cInputL);
-	UCHAR	AsciiToHex(CHAR cInput);
-
-	//UCHAR m_ucMsgClass;
-
-	CAN_XMIT_QUEUE_MSG_T m_XmitQueueMsg;
-
-	UCHAR m_ucXmitMsgBuf[8];
-	CAN_APDU_T m_XmitMsg;
-	CAN_APDU_T m_RecvMsg;
 
 	//当前正在升级的节点地址
 	UINT16 m_u16UpdaingNodeAdd;
@@ -609,14 +493,12 @@ private:
 	//取值为...
 	UINT16	m_u16RespondModuleFlag;
 
-	//升级过程进度标志,防止重入导致状态机错乱
-	UINT16	m_u16ProgramPorcess;
 
 	//读取HEX文件结束标志
 	//其值=0x6789 表示结束
 	UINT16 	m_u16ReadHexFileEnd;
 
-	_HOST_MODULE_ITC_T *m_pHostModuleItc;
+	
 
 	UCHAR m_ucMsgClass;
 
@@ -627,13 +509,17 @@ private:
 	CAN_PACKED_PROTOCOL_U	*tx_msg;
 	CAN_PACKED_PROTOCOL_U	*rx_msg;
 
-	BLOCK_MESSAGE_PACKED	BlockMessage;
-
+	
 	UINT32	BlockMessageProcess_Packaged(void);
 
-	UINT16	BlockCount;
-	UINT16	EveryBlockDataNum[100];
-	UINT16	BlockCheckSum[100];
-	UINT16	BlockData[100][1024];
-	UINT16	BlockAddress[100][2];
+	UINT16  BlockCount;
+
+	public:
+	UINT16	BlockAmount;
+	UINT16	EveryBlockDataNum[500];
+	UINT16	BlockData[500][1024];
+	UINT32	BlockCheckSum[500];
+	UINT32	BlockAddress[500];
+
+	_HOST_MODULE_ITC_T *m_pHostModuleItc;
 };
