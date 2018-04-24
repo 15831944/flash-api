@@ -521,5 +521,9 @@ private:
 	UINT32	BlockCheckSum[500];
 	UINT32	BlockAddress[500];
 
+
+	// 0x01: moninter	0x0F:BYP	0x10 - 0x1F: REC    0x20 - 0x2F  INV
+	char	FlashUpdateProgress[0x3F];		
+	UINT16  FlashUpdateErrorCnt[0x3F];
 	_HOST_MODULE_ITC_T *m_pHostModuleItc;
 };
