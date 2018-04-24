@@ -37,8 +37,36 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(VOID)
 	m_pHostModuleItc = new _HOST_MODULE_ITC_T;
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
 
+	VCI_CAN_OBJ msg_init;
+	msg_init.DataLen = 0;
+	msg_init.ExternFlag = 0;
+	msg_init.ID = 0;
+	msg_init.RemoteFlag = 0;
+	msg_init.Reserved[0] = 0;
+	msg_init.Reserved[1] = 0;
+	msg_init.Reserved[2] = 0;
+	msg_init.SendType = 0;
+	msg_init.TimeFlag = 0;
+	msg_init.Data[0] = 0;
+	msg_init.Data[1] = 0;
+	msg_init.Data[2] = 0;
+	msg_init.Data[3] = 0;
+	msg_init.Data[4] = 0;
+	msg_init.Data[5] = 0;
+	msg_init.Data[6] = 0;
+	msg_init.Data[7] = 0;
 	tx_msg = new CAN_PACKED_PROTOCOL_U[500];
-	rx_msg = new CAN_PACKED_PROTOCOL_U[500];
+	rx_msg = new CAN_PACKED_PROTOCOL_U[200000];
+
+	for (UINT16 i = 0; i < 500; ++i) {
+
+		tx_msg[i].Frame = msg_init;
+		for (UINT j = 0; j < 400; ++j) {
+
+			rx_msg[i].Frame = msg_init;
+		}
+		
+	}
 }
 
 /**********************************************************************
@@ -110,6 +138,7 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 		//等待握手应答信号
 	case STATUS_WAITING_HANDS_RESPOND:
 		//DO NOTHING
+		HandCommXmitFcb();
 		HandCommRecvChipDecodeXmit();
 		break;
 		//等待芯片解密信号
@@ -272,16 +301,18 @@ INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
 	if (msg_num == 0)return 0;
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 
 	for (int i = 0; i < msg_num; ++i) {
 
-		u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
+		
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) && 
+			(rx_msg[i].PackedMsg.b7ServiceCode == HANDS_COMM_SRVCODE))
 		{
 
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 			//握手成功
 			if (HAND_OK_RESPOND == u16RetrunStatus)
 			{
@@ -347,11 +378,12 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
 	if (msg_num == 0)return 0;
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	for (int i = 0; i < msg_num; ++i) {
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == CHIP_DECODE_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
@@ -415,7 +447,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
@@ -424,7 +456,8 @@ INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) && 
+			(rx_msg[i].PackedMsg.b7ServiceCode == API_VERSION_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
@@ -434,7 +467,10 @@ INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
 				m_pHostModuleItc->u16FlashupdateStatus = STATUS_API_OK;
 
 			}
+			else {
 
+
+			}
 
 		}
 	}
@@ -482,7 +518,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::EraseSectorRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
@@ -491,7 +527,8 @@ INT32 CAN_FlashupdateMsgHandle::EraseSectorRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) && 
+			(rx_msg[i].PackedMsg.b7ServiceCode == ERASE_SECTOR_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 			if (ERASE_SUCCESFULL == u16RetrunStatus)
@@ -535,7 +572,7 @@ INT32 CAN_FlashupdateMsgHandle::ProgramXmitFcb(VOID)
 }
 
 /**********************************************************************
-ProgramRecvFcb-----编程命令反馈
+ProgramRecvFcb-----编程允许命令反馈
 
 Parameters:
 
@@ -545,7 +582,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::ProgramRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
@@ -554,8 +591,10 @@ INT32 CAN_FlashupdateMsgHandle::ProgramRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) && 
+			(rx_msg[i].PackedMsg.b7ServiceCode == PROGRAM_SRVCODE))
 		{
+
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 
@@ -605,7 +644,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
@@ -614,8 +653,10 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == VERIFY_SRVCODE))
 		{
+			FlashUpdateProgress[rx_msg[i].PackedMsg.b6SourceMacId] += 2;
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 			//校验成功,升级成功,反馈给后台TBD
@@ -625,14 +666,34 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
 				BlockCount++;
 				if (BlockCount >= BlockAmount)
 				{
-					m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
+					tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
+					tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
+					tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
+					tx_msg->PackedMsg.b7ServiceCode = BLOCK_HEAD_SRVCODE;
+					tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
+					tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
+					tx_msg->PackedMsg.b1RsRq = RS_MSG;
+					tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
+					tx_msg->PackedMsg.DataLen = 8;
+
+					// send 0x00 restart dsp
+					tx_msg->PackedMsg.MsgData[0] = 0x00;
+					tx_msg->PackedMsg.MsgData[1] = 0x00;
+
+					tx_msg->PackedMsg.MsgData[2] = 0x00;
+					tx_msg->PackedMsg.MsgData[3] = 0x00;
+					tx_msg->PackedMsg.MsgData[4] = 0x00;
+					tx_msg->PackedMsg.MsgData[5] = 0x00;
+					m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
+					FlashUpdateProgress[rx_msg[i].PackedMsg.b6SourceMacId] = 100;
 
 				}
 
 				//还有BLOCK需传输,
 				else
 				{
+					
 					//状态机回到传输下一个BLOCK头
 					m_pHostModuleItc->u16FlashupdateStatus = STATUS_NEXT_BLOCK_HEAD;
 				}
@@ -702,7 +763,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::BlockHeadRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
@@ -711,7 +772,8 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == BLOCK_HEAD_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
@@ -772,7 +834,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmitFcb(VOID)
 
 			tx_msg[i].PackedMsg.DataLen = 2;
 		}
-		for (UINT16 j = 0; j < 6; ++i) {
+		for (UINT16 j = 0; j < 6; ++j) {
 
 			tx_msg[i].PackedMsg.MsgData[j] = *msg_data_ptr;
 			msg_data_ptr++;
@@ -823,16 +885,17 @@ INT32 CAN_FlashupdateMsgHandle::BlockChecksumXmitFcb(VOID)
 	if (msg_num == 0)return 0;
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 
 	for (int i = 0; i < msg_num; ++i) {
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == BLOCK_DATA_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 			// dsp接收到的帧数与下发帧数相同, 则传CHECKSUM
-			if (((EveryBlockDataNum[BlockCount] << 1) / 6 + 2) == u16RetrunStatus)
+			//if (((EveryBlockDataNum[BlockCount] << 1) / 6 + 2) == u16RetrunStatus)
 			{
 				tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
 				tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
@@ -872,7 +935,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::BlockChecksumRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
@@ -880,8 +943,10 @@ INT32 CAN_FlashupdateMsgHandle::BlockChecksumRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == BLOCK_CHECKSUM_SRVCODE))
 		{
+			
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 			if (CHECK_SUM_SUCCESFUL == u16RetrunStatus){
@@ -941,7 +1006,7 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::BlockProgStatusRecvFcb(VOID)
 {
-	UINT16 u16RetrunStatus;
+	UINT16 u16RetrunStatus = 0;
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	if (msg_num == 0)return 0;
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
@@ -949,7 +1014,8 @@ INT32 CAN_FlashupdateMsgHandle::BlockProgStatusRecvFcb(VOID)
 	for (int i = 0; i < msg_num; ++i) {
 
 		if ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&
-			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON))
+			(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON) &&
+			(rx_msg[i].PackedMsg.b7ServiceCode == BLOCK_PROMG_STATUS_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
