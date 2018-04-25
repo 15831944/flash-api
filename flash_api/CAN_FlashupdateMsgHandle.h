@@ -9,6 +9,14 @@
 #include "afxdialogex.h"
 #include "flash_apiDlg.h"
 #include "ControlCAN.h"
+
+#define MAX_ERROR_MSG	100
+#define MESSAGE_NUM 500
+#define CheckRxMessageNum() if (msg_num == 0)return 0;\
+							msg_num = (msg_num > MESSAGE_NUM)? MESSAGE_NUM:msg_num;
+#define MESSAGE_FILLTER(SERVICECODE) ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&	\
+									(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON)  &&	\
+									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE))
 //-----------------------------------------------------------------------------
 //Macro definition
 //sevice code denfine
@@ -158,23 +166,6 @@
 #define RS_MSG 1
 #define RQ_MSG 0
 
-typedef struct
-{
-	//升级的目标地址
-	UCHAR ucTargeAddr;
-	//此目标地址升级使能=1使能
-	UCHAR ucTargetEnable;
-	//升级过程中本次任务处理完毕=1处理完毕
-	UCHAR ucTaskHandled;
-}_FLASHUPDATE_TARGET_T;
-
-
-enum TIMER_OPTION
-{
-	TIMER_ONE_SHOT = 0, 	//只运行一次
-	TIMER_REPEAT = 1		//重复执行
-};
-
 
 //CAN信息类别枚举
 enum CAN_MSG_CLASS_ENUM
@@ -230,12 +221,12 @@ enum _CAN_MAC_ID_ENUM
 	MAC_ID_MOD8_INV = 0x17,
 	MAC_ID_MOD9_INV = 0x18,
 	MAC_ID_MOD10_INV = 0x19,
-	MAC_ID_RSVDX1A,
-	MAC_ID_RSVDX1B,
-	MAC_ID_RSVDX1C,
-	MAC_ID_RSVDX1D,
-	MAC_ID_RSVDX1E,
-	MAC_ID_RSVDX1F,
+	MAC_ID_MOD11_INV = 0x1A,
+	MAC_ID_MOD12_INV = 0x1B,
+	MAC_ID_MOD13_INV = 0x1C,
+	MAC_ID_MOD14_INV = 0x1D,
+	MAC_ID_MOD15_INV = 0x1E,
+	MAC_ID_MOD16_INV = 0x1F,
 	MAC_ID_MOD1_REC = 0x20,
 	MAC_ID_MOD2_REC = 0x21,
 	MAC_ID_MOD3_REC = 0x22,
@@ -246,6 +237,12 @@ enum _CAN_MAC_ID_ENUM
 	MAC_ID_MOD8_REC = 0x27,
 	MAC_ID_MOD9_REC = 0x28,
 	MAC_ID_MOD10_REC = 0x29,
+	MAC_ID_MOD11_REC = 0x2A,
+	MAC_ID_MOD12_REC = 0x2B,
+	MAC_ID_MOD13_REC = 0x2C,
+	MAC_ID_MOD14_REC = 0x2D,
+	MAC_ID_MOD15_REC = 0x2E,
+	MAC_ID_MOD16_REC = 0x2F,
 	MAC_ID_EOL
 };
 
@@ -332,18 +329,6 @@ typedef enum
 typedef struct
 {
 
-	//FlashUpdate标志
-	UCHAR sFlashUpdateFlag;//整流逆变或者旁路
-
-						   //反馈给后台的升级状态
-						   //[0]--BYPASS,1~10 Module,11--Monitor
-						   //	_FLASHUPDATE_HOST_STATUS u16UpdateStatus[12];
-	UINT16 u16UpdateStatus[12];
-
-
-	//需升级的模块号
-	UINT16 u16ModIdx;
-
 	//是否需要升级相应kernel
 	//=0x95表示需升级kernel,其他不升级kernel
 	UINT16 u16FlashUpdateKernelFlag;
@@ -351,12 +336,16 @@ typedef struct
 	//Flash update 状态机
 	_FLASHUPDATE_STATUS u16FlashupdateStatus;
 
-
-
 	//.....
 }_HOST_MODULE_ITC_T;
 
+typedef struct {
 
+	BYTE receive_done;
+	DWORD ereor_cnt;
+	_FLASHUPDATE_STATUS error_state_saved;
+
+}_ERROR_MESSAGE;
 
 
 typedef union CAN_PACKED_PROTOCOL_STRUCT
@@ -385,7 +374,7 @@ typedef union CAN_PACKED_PROTOCOL_STRUCT
 }CAN_PACKED_PROTOCOL_U;
 
 
-class CAN_FlashupdateMsgHandle //:public FlashUpdateMain
+class CAN_FlashupdateMsgHandle
 {
 public:
 	CAN_FlashupdateMsgHandle(VOID);
@@ -395,7 +384,6 @@ public:
 
 
 	VOID FlashUpdateRoutine(VOID);
-	UCHAR FlashupdateNodeGet(VOID);
 	//---------------------------------
 	INT32 HandCommXmitFcb(VOID);
 	INT32 HandCommRecvChipDecodeXmit(VOID);
@@ -418,19 +406,16 @@ public:
 	INT32 VerifyXmitFcb(VOID);
 	INT32 VerifyRecvFcb(VOID);
 
-	VOID FlashupdateTaskReset(VOID);
-	UCHAR FlashupdateTaskHandle(UCHAR ucRecvAddr);
+	DWORD FlashUpdateCompleteRecv(VOID);
 
-	VOID ResetFlsUpdateMoudele(VOID);
-
-	
+	//当前正在升级的节点地址
+	UINT16 m_u16UpdaingNodeAdd;
 
 private:
 
 
 
-	//当前正在升级的节点地址
-	UINT16 m_u16UpdaingNodeAdd;
+	
 
 	//当前升级的模块号
 	UINT16 m_u16UpdatingModuleNo;
@@ -483,12 +468,6 @@ private:
 	//BLOCK重发次数
 	UINT16 m_u16ResendCnt;
 
-
-
-	//待升级目标变量
-	//=0,表示升级旁路，=1~10升级模块
-	_FLASHUPDATE_TARGET_T m_tFlashupdateTarged[11];
-
 	//根据后台指定的升级模块看是否有握手应答信号
 	//取值为...
 	UINT16	m_u16RespondModuleFlag;
@@ -509,8 +488,13 @@ private:
 	CAN_PACKED_PROTOCOL_U	*tx_msg;
 	CAN_PACKED_PROTOCOL_U	*rx_msg;
 
-	
+	int ParameterRefresh();
 	UINT32	BlockMessageProcess_Packaged(void);
+
+	void	MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_state,
+							BOOL IsNot);
+	UINT64	MsgErrorSave = 0;
+	UINT64	NodeSelect = 0;
 
 	UINT16  BlockCount;
 
@@ -522,8 +506,11 @@ private:
 	UINT32	BlockAddress[500];
 
 
+	UINT16 NodeOffset;
+	UINT64 Module_number;
 	// 0x01: moninter	0x0F:BYP	0x10 - 0x1F: REC    0x20 - 0x2F  INV
-	char	FlashUpdateProgress[0x3F];		
-	UINT16  FlashUpdateErrorCnt[0x3F];
+	UINT16	FlashUpdateProgress[0x3F];		
+	_ERROR_MESSAGE  FlashUpdateErrorMsg[0x3F];
 	_HOST_MODULE_ITC_T *m_pHostModuleItc;
+	
 };
