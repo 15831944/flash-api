@@ -368,7 +368,7 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
 			}
 		}
 	}
-	//等待解密信息反馈,启动等待延时TBD
+	//等待解密信息反馈,启动等待延时
 	MsgErrorProcess(STATUS_WAITING_API_VERSION, TRUE);
 	//下发获取API版本信息
 	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
@@ -960,7 +960,7 @@ DWORD CAN_FlashupdateMsgHandle::FlashUpdateCompleteRecv(VOID) {
 
 			if (FILE_TRANS_END == u16RetrunStatus) {
 
-
+				
 			}
 		}
 	}
@@ -1029,7 +1029,6 @@ int CAN_FlashupdateMsgHandle::ParameterRefresh()
 	NodeSelect = 0;
 	
 	m_ucMsgClass = CAN_RESERVED_CLASS;
-	m_pHostModuleItc = new _HOST_MODULE_ITC_T;
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
 
 	VCI_CAN_OBJ msg_init;
@@ -1050,8 +1049,6 @@ int CAN_FlashupdateMsgHandle::ParameterRefresh()
 	msg_init.Data[5] = 0;
 	msg_init.Data[6] = 0;
 	msg_init.Data[7] = 0;
-	tx_msg = new CAN_PACKED_PROTOCOL_U[MESSAGE_NUM];
-	rx_msg = new CAN_PACKED_PROTOCOL_U[MESSAGE_NUM];
 
 	for (UINT16 i = 0; i < MESSAGE_NUM; ++i) {
 
