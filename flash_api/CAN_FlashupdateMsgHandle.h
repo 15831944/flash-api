@@ -16,7 +16,9 @@
 							msg_num = (msg_num > MESSAGE_NUM)? MESSAGE_NUM:msg_num;
 #define MESSAGE_FILLTER(SERVICECODE) ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&	\
 									(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON)  &&	\
-									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE))
+									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE) && \
+									(rx_msg[i].PackedMsg.b6SourceMacId >= NodeOffset) && \
+									(rx_msg[i].PackedMsg.b6SourceMacId < (NodeOffset+0x10)))
 //-----------------------------------------------------------------------------
 //Macro definition
 //sevice code denfine
@@ -308,25 +310,7 @@ typedef enum
 
 
 
-//初始状态
-#define	STATUS_HOST_UPDATE_INI  0
-
-//尚未开始升级
-#define	STATUS_HOST_HAVENOT_START 1
-
-//正在升级中
-#define	STATUS_HOST_UPDAT_ING 2
-
-//升级成功
-#define	STATUS_HOST_UPDATE_SUCCESFULL 3
-
-//升级失败
-#define	STATUS_HOST_UPDATE_FAIL 4
-
-//指定升级节点不在线
-#define	STATUS_UPDATE_NODE_OFF_LINE 5
-
-typedef struct
+typedef struct _HOST_MODULE_ITC_T1
 {
 
 	//是否需要升级相应kernel
@@ -339,7 +323,7 @@ typedef struct
 	//.....
 }_HOST_MODULE_ITC_T;
 
-typedef struct {
+typedef struct _ERROR_MESSAGE1{
 
 	BYTE receive_done;
 	DWORD ereor_cnt;
@@ -380,9 +364,6 @@ public:
 	CAN_FlashupdateMsgHandle(VOID);
 	virtual ~CAN_FlashupdateMsgHandle(VOID);
 
-	UCHAR GetMsgClass(VOID);
-
-
 	VOID FlashUpdateRoutine(VOID);
 	//---------------------------------
 	INT32 HandCommXmitFcb(VOID);
@@ -413,72 +394,6 @@ public:
 
 private:
 
-
-
-	
-
-	//当前升级的模块号
-	UINT16 m_u16UpdatingModuleNo;
-
-	//BLOCK文件校验和
-	UINT16 m_u16BlockChecksum;
-
-	//文件传输相关
-	//每一个SECTION 分成N个BLOCK
-	UINT16	m_u16BlockNumOfSection;
-	//N个BLOCK中当前BLOCK号
-	UINT16	m_u16CurrentBlockNum;
-	//当前SECTION中不足1024字(一个BLOCK),剩余字数
-	UINT16 	m_u16RemainWordOfSection;
-	//剩余BLOCK(不足1024字)需用的CAN帧数
-	UINT16	m_u16FrameNumOfRemainBlock;
-	//剩余BLOCK(不足1024字)所有帧中最后一帧的字的个数
-	UINT16	m_u16LastFrameWordNumOfRemainBlock;
-	//对应SECTION的长度
-	WORD m_wSectionLen;
-	//对应SECTION地址
-	UINT m_uSectionAddress;
-
-	//总的帧数-1
-	UINT16 m_u16FrameNumOneBlock;
-	//最后一帧的字的个数
-	UINT16 m_u16LastFrameWordNumOneBlock;
-	//待传输的帧号
-	UINT16 m_u16CurrentFrameNum;
-	//待传输的BLOCK号
-	UINT16 m_u16BlockNum;
-
-	//本次BLOCK的校验和
-	UINT32 m_u32CheckSumOneBlock;
-
-	//待传输的数据在BLOCK中的地址
-	DWORD m_ulPos;
-
-	//	BYTE m_byBuff[1024*96];
-	//	BYTE m_ucSectionBuff[1024*48];
-	//	BYTE m_byBuff[1024*360];
-	BYTE m_ucSectionBuff[1024 * 300];
-
-	//对应BLOCK地址
-	UINT m_uBlockAddress;
-
-	//对应BLOCK的长度
-	WORD m_wBlockLen;
-
-	//BLOCK重发次数
-	UINT16 m_u16ResendCnt;
-
-	//根据后台指定的升级模块看是否有握手应答信号
-	//取值为...
-	UINT16	m_u16RespondModuleFlag;
-
-
-	//读取HEX文件结束标志
-	//其值=0x6789 表示结束
-	UINT16 	m_u16ReadHexFileEnd;
-
-	
-
 	UCHAR m_ucMsgClass;
 
 
@@ -488,17 +403,19 @@ private:
 	CAN_PACKED_PROTOCOL_U	*tx_msg;
 	CAN_PACKED_PROTOCOL_U	*rx_msg;
 
-	int ParameterRefresh();
+	int		ParameterRefresh();
 	UINT32	BlockMessageProcess_Packaged(void);
 
 	void	MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_state,
 							BOOL IsNot);
-	UINT64	MsgErrorSave = 0;
-	UINT64	NodeSelect = 0;
+	UINT64	MsgReceivedDoneFlagSave;
+	UINT64  MsgErrorSave;
+	UINT64	NodeSelect;
+
 
 	UINT16  BlockCount;
 
-	public:
+public:
 	UINT16	BlockAmount;
 	UINT16	EveryBlockDataNum[500];
 	UINT16	BlockData[500][1024];
@@ -512,5 +429,6 @@ private:
 	UINT16	FlashUpdateProgress[0x3F];		
 	_ERROR_MESSAGE  FlashUpdateErrorMsg[0x3F];
 	_HOST_MODULE_ITC_T *m_pHostModuleItc;
-	
+	_ERROR_MESSAGE  FlashUpdateErrorMsgBak[0x3F];
+	_HOST_MODULE_ITC_T m_pHostModuleItcBak;
 };
