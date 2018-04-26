@@ -248,17 +248,8 @@ INT32 CAN_FlashupdateMsgHandle::HandCommXmitFcb(VOID)
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
 	//发握手命令
+	TX_MESSAGE_FUNCTION(0, HANDS_COMM_SRVCODE, 4);
 
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
-
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = HANDS_COMM_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 4;
 	tx_msg->PackedMsg.MsgData[0] = HAND_COMM_QUERY & 0xFF;
 	tx_msg->PackedMsg.MsgData[1] = 0xFF & (HAND_COMM_QUERY >> 8);
 
@@ -311,17 +302,8 @@ INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
 	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
 
 		MsgReceivedDoneFlagSave = 0;
-		tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-		tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-		tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-		tx_msg->PackedMsg.b7ServiceCode = CHIP_DECODE_SRVCODE;
-		tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-		tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-		tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-		tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-		tx_msg->PackedMsg.DataLen = 2;
-
+		TX_MESSAGE_FUNCTION(0, CHIP_DECODE_SRVCODE, 2);
 		VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	}
@@ -392,17 +374,8 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
 	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
 
 		MsgReceivedDoneFlagSave = 0;
-		tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-		tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-		tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-		tx_msg->PackedMsg.b7ServiceCode = API_VERSION_SRVCODE;
-		tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-		tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-		tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-		tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-		tx_msg->PackedMsg.DataLen = 2;
-
+		TX_MESSAGE_FUNCTION(0, API_VERSION_SRVCODE, 2);
 		VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	}
@@ -481,16 +454,9 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::EraseSectorXmitFcb(VOID)
 {
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = ERASE_SECTOR_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 4;
+	TX_MESSAGE_FUNCTION(0, ERASE_SECTOR_SRVCODE, 4);
+
 	*((UINT16*)(tx_msg->PackedMsg.MsgData)) = ERASE_SECTOR_ALL;
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 	//下发擦除命令,等待擦除信息反馈
@@ -547,16 +513,8 @@ Postcondition:
 **********************************************************************/
 INT32 CAN_FlashupdateMsgHandle::ProgramXmitFcb(VOID)
 {
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = PROGRAM_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 2;
+	TX_MESSAGE_FUNCTION(0, PROGRAM_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_PROGRAM_PERMIT_WAITING;
@@ -668,17 +626,8 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
 		BlockCount++;
 		if (BlockCount >= BlockAmount)
 		{
-			tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-			tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-			tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-			tx_msg->PackedMsg.b7ServiceCode = BLOCK_HEAD_SRVCODE;
-			tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-			tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-			tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-			tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-			tx_msg->PackedMsg.DataLen = 8;
-
+			TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
 			// send 0x00 restart dsp
 			tx_msg->PackedMsg.MsgData[0] = 0x00;
 			tx_msg->PackedMsg.MsgData[1] = 0x00;
@@ -717,18 +666,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadXmitFcb(VOID)
 {
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
-
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
-
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = BLOCK_HEAD_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 8;
-
+	TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
 	tx_msg->PackedMsg.MsgData[0] = (BYTE)(EveryBlockDataNum[BlockCount] & 0x00FF);
 	tx_msg->PackedMsg.MsgData[1] = (BYTE)((EveryBlockDataNum[BlockCount] >> 8) & 0x00FF);
 
@@ -801,12 +739,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmitFcb(VOID)
 	UINT16 msg_num = (EveryBlockDataNum[BlockCount] << 1) / 6;
 	for (UINT16 i = 0; i < msg_num + 2; ++i) {
 
-		tx_msg[i].PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-		tx_msg[i].PackedMsg.b7ServiceCode = BLOCK_DATA_SRVCODE;
-		tx_msg[i].PackedMsg.b10MsgClass = m_ucMsgClass;
-		tx_msg[i].PackedMsg.b1Fragment = NONFRAG_MSG;
-		tx_msg[i].PackedMsg.b1RsRq = RQ_MSG;
-		tx_msg[i].PackedMsg.b6SourceMacId = MAC_ID_MON;
+		TX_MESSAGE_FUNCTION(i, BLOCK_DATA_SRVCODE, 8);
 		if (i < msg_num) {
 
 			tx_msg[i].PackedMsg.DataLen = 8;
@@ -889,16 +822,7 @@ Postcondition:
 INT32 CAN_FlashupdateMsgHandle::BlockChecksumXmitFcb(VOID)
 {
 
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
-
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = BLOCK_CHECKSUM_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 6;
+	TX_MESSAGE_FUNCTION(0, BLOCK_CHECKSUM_SRVCODE, 6)
 	tx_msg->PackedMsg.MsgData[0] = (BYTE)(BlockCheckSum[BlockCount] & 0x00FF);
 	tx_msg->PackedMsg.MsgData[1] = (BYTE)((BlockCheckSum[BlockCount] >> 8) & 0x00FF);
 	tx_msg->PackedMsg.MsgData[2] = (BYTE)((BlockCheckSum[BlockCount] >> 16) & 0x00FF);
@@ -962,23 +886,11 @@ Return Value:
 Precondition:
 Postcondition:
 **********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockProgStatusXmitFcb(VOID)
-{
+INT32 CAN_FlashupdateMsgHandle::BlockProgStatusXmitFcb(VOID){
+
 	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
-
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = BLOCK_PROMG_STATUS_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 2;
-
-
-
+	TX_MESSAGE_FUNCTION(0, BLOCK_PROMG_STATUS_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_PROGRAM_WAITING;
@@ -1021,19 +933,11 @@ for (int i = 0; i < msg_num; ++i) {
 }
 MsgErrorProcess(STATUS_BLOCK_PROGRAM_WAITING, TRUE);
 if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
+
 	MsgReceivedDoneFlagSave = 0;
 	//下发FLASH校验命令
-	tx_msg->PackedMsg.RemoteFlag = 0;// 数据帧
-	tx_msg->PackedMsg.ExternFlag = 0;// 标准帧
 
-	tx_msg->PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;
-	tx_msg->PackedMsg.b7ServiceCode = VERIFY_SRVCODE;
-	tx_msg->PackedMsg.b10MsgClass = m_ucMsgClass;
-	tx_msg->PackedMsg.b1Fragment = NONFRAG_MSG;
-	tx_msg->PackedMsg.b1RsRq = RQ_MSG;
-	tx_msg->PackedMsg.b6SourceMacId = MAC_ID_MON;
-	tx_msg->PackedMsg.DataLen = 2;
-
+	TX_MESSAGE_FUNCTION(0, VERIFY_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_VERIFYING;
 }
@@ -1094,6 +998,9 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 			}
 		}
 	}
+
+
+
 	if ((MsgReceivedDoneFlagSave & (NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
 
 		m_pHostModuleItc->u16FlashupdateStatus = flash_update_state;

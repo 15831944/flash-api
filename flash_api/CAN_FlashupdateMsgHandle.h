@@ -19,6 +19,18 @@
 									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE) && \
 									(rx_msg[i].PackedMsg.b6SourceMacId >= NodeOffset) && \
 									(rx_msg[i].PackedMsg.b6SourceMacId < (NodeOffset+0x10)))
+
+#define	TX_MESSAGE_FUNCTION(MSG_NUMBER, SERVICE_CODE, DLC)	\
+	tx_msg[MSG_NUMBER].PackedMsg.RemoteFlag = 0;			\
+	tx_msg[MSG_NUMBER].PackedMsg.ExternFlag = 0;				\
+	tx_msg[MSG_NUMBER].PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;\
+	tx_msg[MSG_NUMBER].PackedMsg.b7ServiceCode = SERVICE_CODE;\
+	tx_msg[MSG_NUMBER].PackedMsg.b10MsgClass = m_ucMsgClass;\
+	tx_msg[MSG_NUMBER].PackedMsg.b1Fragment = NONFRAG_MSG;\
+	tx_msg[MSG_NUMBER].PackedMsg.b1RsRq = RQ_MSG;\
+	tx_msg[MSG_NUMBER].PackedMsg.b6SourceMacId = MAC_ID_MON;\
+	tx_msg[MSG_NUMBER].PackedMsg.DataLen = DLC;\
+
 //-----------------------------------------------------------------------------
 //Macro definition
 //sevice code denfine
