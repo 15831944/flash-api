@@ -9,6 +9,8 @@
 #include "afxdialogex.h"
 #include "flash_apiDlg.h"
 #include "ControlCAN.h"
+#include "Blob.h"
+
 
 #define MAX_ERROR_MSG	100
 #define MESSAGE_NUM 500
@@ -373,7 +375,7 @@ typedef union CAN_PACKED_PROTOCOL_STRUCT
 class CAN_FlashupdateMsgHandle
 {
 public:
-	CAN_FlashupdateMsgHandle(VOID);
+	CAN_FlashupdateMsgHandle(Blob *solver);
 	virtual ~CAN_FlashupdateMsgHandle(VOID);
 
 	VOID FlashUpdateRoutine(VOID);
@@ -426,13 +428,8 @@ private:
 
 
 	UINT16  BlockCount;
-
+	Blob *Solver;
 public:
-	UINT16	BlockAmount;
-	UINT16	EveryBlockDataNum[500];
-	UINT16	BlockData[500][1024];
-	UINT32	BlockCheckSum[500];
-	UINT32	BlockAddress[500];
 
 	// 0x00, 0x10, 0x20
 	UINT16 NodeOffset;
@@ -446,4 +443,5 @@ public:
 
 	_ERROR_MESSAGE  FlashUpdateErrorMsgBak[0x3F];
 	_HOST_MODULE_ITC_T m_pHostModuleItcBak;
+	
 };

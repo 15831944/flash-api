@@ -191,6 +191,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Blob.h" />
     <ClInclude Include="CanAnalyse.h" />
     <ClInclude Include="CAN_FlashupdateMsgHandle.h" />
     <ClInclude Include="ControlCAN.h" />
@@ -203,6 +204,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Blob.cpp" />
     <ClCompile Include="CanAnalyse.cpp" />
     <ClCompile Include="CAN_FlashupdateMsgHandle.cpp" />
     <ClCompile Include="FlashUpdateMain.cpp" />
