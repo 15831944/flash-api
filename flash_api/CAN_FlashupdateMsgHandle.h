@@ -155,7 +155,7 @@
 
 
 //dsp 反馈接收到数据
-#define BLOCK_RECV_DATA_OK 0
+#define PROGRAM_STATUS_SUCCESS 0
 
 
 //-----20100118:增加处理共同升级整流、逆变的处理变量类型定义
@@ -263,65 +263,52 @@ enum _CAN_MAC_ID_ENUM
 };
 
 
+typedef enum {
 
-typedef enum
-{
 	//初始无效状态
-	STATUS_FLASH_UPDATE_INVALID = 0,
+	FLASH_UPDATE_INVALID = 0,
 	//开始选择节点升级
-	STATUS_FLASH_START,
-	//对指定节点开始升级过程
-	STATUS_SELCET_NODE,
-
-	//等待握手信号状态
-	STATUS_WAITING_HANDS_RESPOND,
-	//等待芯片解密应答信号
-	STATUS_WAITING_CHIP_DECODE,
-	//等待API版本确认信息
-	STATUS_WAITING_API_VERSION,
-	//API ok
-	STATUS_API_OK,
-
-	//擦除中状态
-	STATUS_FLASH_ERASE_GOING,
-	//擦除结束
-	STATUS_FLASH_ERASED,
-	//等待编程允许状态
-	STATUS_PROGRAM_PERMIT_WAITING,
-	//编程允许
-	STATUS_PROGRAM_ENABLE,
+	FLASH_UPDATE_START,
+	//发送握手信号等待握手信号状态
+	SEND_MSG_WAITING_HANDS_RESPOND,
+	//发送芯片解密命令等待芯片解密应答信号
+	SEND_MSG_WAITING_CHIP_DECODE_RESPOND,
+	//发送命令等待API版本确认信息
+	SEND_MSG_WAITING_API_VERSION_OK,
+	//发送擦除命令
+	SEND_MSG_FLASH_ERASE,
+	//等待擦除完毕
+	WAITING_MSG_ERASE_END,
+	//请求编程许可等待编程允许
+	SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND,
 	//传输BLOCK头
-	STATUS_BLOCK_HEAD_WAITING,
-	//传输BLOCK头结束
-	STATUS_BLOCK_HEAD_OK,
-
-	//传输下一个BLOCK
-	STATUS_NEXT_BLOCK_HEAD,
-
-	//等待允许传输BLOCK数据
-	STATUS_BLOCK_DATATRANS_WAITING,
-	//BLOCK数据传输结束
-	STATUS_BLOCK_DATATRANS_END,
-	//等待BLOCK校验和应答
-	STATUS_BLOCK_CHECKSUM_WAITING,
-	//BLOCK校验OK
-	STATUS_BLOCK_CHECKSUM_OK,
-	//编程状态等待
-	STATUS_BLOCK_PROGRAM_WAITING,
-	//BLOCK编程完成
-	STATUS_BLOCK_PROGRAM_COMPLETE,
-	//文件传输完成
-	STATUS_FILE_TRANS_END,
-	//FLASH 校验中
-	STATUS_FLASH_VERIFYING,
-	//FLASH 校验完毕
-	STATUS_FLASH_VERIFY,
-	//FLASH UPDATE 完成
-	STATUS_FLASH_UPDATE_OVER
-
-
+	SEND_MSG_BLOCK_HEAD,
+	//等待传输BLOCK头结束标志
+	WAITING_BLOCK_HEAD_TRANSFER_OK,
+	//传输BLOCK数据
+	SEND_BLOCK_DATA,
+	//等待传输BLOCK数据完成标志
+	WAITING_MSG__BLOCK_DATATRANS_END,
+	//传输CHECKSUM
+	SEND_MSG_BLOCK_CHECKSUM,
+	//等待CHECKSUM校验成功标志
+	WAITING_MSG_BLOCK_CHECKSUM_OK,
+	//下发编程命令,
+	SEND_ORDER_PROGRAM,
+	//等待DSP回传编程状态
+	WAITING_MSG_PROGRAM_OK,
+	//发送FLASH 校验命令,
+	SEND_ORDER_FLASH_VERIFY,
+	//等待FLASH 校验完毕消息
+	WAITING_FLASH_VERIFY_OK,
+	//判断是否还有BLOCK需传输, 有则传输BLOCK头,无则向DSP发送重启命令
+	SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING,
+	//等待DSP FLASHUPDATE成功标志
+	WAITING_FLAG_FLASHUPDATE_COMPLETED,
+	FLASH_UPDATE_SUCCEED,
+	//FLASH UPDATE 失败
+	FLASH_UPDATE_OVER
 }_FLASHUPDATE_STATUS;
-
 
 
 typedef struct _HOST_MODULE_ITC_T1
@@ -380,28 +367,25 @@ public:
 
 	VOID FlashUpdateRoutine(VOID);
 	//---------------------------------
-	INT32 HandCommXmitFcb(VOID);
-	INT32 HandCommRecvChipDecodeXmit(VOID);
-	INT32 ChipDecodeXmitFcb(VOID);
-	INT32 ChipDecodeRecvFcb(VOID);
-	INT32 ApiVersionXmitFcb(VOID);
-	INT32 ApiVersionRecvFcb(VOID);
-	INT32 EraseSectorXmitFcb(VOID);
-	INT32 EraseSectorRecvFcb(VOID);
-	INT32 ProgramXmitFcb(VOID);
-	INT32 ProgramRecvFcb(VOID);
-	INT32 BlockHeadXmitFcb(VOID);
-	INT32 BlockHeadRecvFcb(VOID);
-	INT32 BlockDataXmitFcb(VOID);
-	INT32 BlockDataRecvFcb(VOID);
-	INT32 BlockChecksumXmitFcb(VOID);
-	INT32 BlockChecksumRecvFcb(VOID);
-	INT32 BlockProgStatusXmitFcb(VOID);
-	INT32 BlockProgStatusRecvFcb(VOID);
-	INT32 VerifyXmitFcb(VOID);
-	INT32 VerifyRecvFcb(VOID);
-
-	DWORD FlashUpdateCompleteRecv(VOID);
+	INT32 ParameterRefresh(VOID);
+	INT32 HandCommProcess(VOID);
+	INT32 ChipDecodeProcess(VOID);
+	INT32 VerifyApiVersion(VOID);
+	INT32 EraseSectorOrderXmit(VOID);
+	INT32 EraseSectorStatusRecv(VOID);
+	INT32 ProgramPermissionGet(VOID);
+	INT32 BlockHeadXmit(VOID);
+	INT32 BlockHeadRecv(VOID);
+	INT32 BlockDataXmit(VOID);
+	INT32 BlockDataRecv(VOID);
+	INT32 BlockCheckSumXmit(VOID);
+	INT32 BlockCheckSumRecv(VOID);
+	INT32 BlockProgOrderXmit(VOID);
+	INT32 BlockProgOrderRecv(VOID);
+	INT32 VerifyXmit(VOID);
+	INT32 VerifyRecv(VOID);
+	INT32 SendNextBlock_DspRestart(VOID);
+	INT32 FlashUpdateComplete(VOID);
 
 	//当前正在升级的节点地址
 	UINT16 m_u16UpdaingNodeAdd;
@@ -417,8 +401,7 @@ private:
 	CAN_PACKED_PROTOCOL_U	*tx_msg;
 	CAN_PACKED_PROTOCOL_U	*rx_msg;
 
-	int		ParameterRefresh();
-	UINT32	BlockMessageProcess_Packaged(void);
+
 
 	void	MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_state,
 							BOOL IsNot);

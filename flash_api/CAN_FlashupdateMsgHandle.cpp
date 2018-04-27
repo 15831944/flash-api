@@ -19,7 +19,7 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
 {
 	m_ucMsgClass = CAN_RESERVED_CLASS;
 	m_pHostModuleItc = new _HOST_MODULE_ITC_T;
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
+	m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_INVALID;
 
 	VCI_CAN_OBJ msg_init;
 	msg_init.DataLen = 0;
@@ -54,7 +54,7 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
 
 		FlashUpdateProgress[i] = 0;
 		FlashUpdateErrorMsg[i].ereor_cnt = 0;
-		FlashUpdateErrorMsg[i].error_state_saved = STATUS_FLASH_UPDATE_INVALID;
+		FlashUpdateErrorMsg[i].error_state_saved = FLASH_UPDATE_INVALID;
 		FlashUpdateErrorMsg[i].receive_done = FALSE;
 	}
 	BlockCount = 0;
@@ -96,137 +96,114 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 	{
 		//开始升级
 		//获取升级对象
-	case STATUS_FLASH_START:
+	case FLASH_UPDATE_START:
 
 		ParameterRefresh();
-		NodeSelect = (m_u16UpdaingNodeAdd == 0x3F) ?
-					 (UINT64)0xFFFF : ((UINT64)0x0001L << (Module_number - 1));
-		NodeSelect = (m_u16UpdaingNodeAdd == 0x0F) ?
-					 (UINT64)0x8000 : NodeSelect;
-		m_pHostModuleItc->u16FlashupdateStatus = STATUS_SELCET_NODE;
-		//m_u16UpdaingNodeAdd = 0x10;
-		m_ucMsgClass = CAN_RESERVED_CLASS;
-		m_pHostModuleItc->u16FlashUpdateKernelFlag = 0x95;
+
 		break;
 
-		//对指定节点开始升级
-		//首先发握手命令
-	case STATUS_SELCET_NODE:
+		//发送握手命令并等待握手应答信号
+	case SEND_MSG_WAITING_HANDS_RESPOND:
 
-		HandCommXmitFcb();
+		HandCommProcess();
 		break;
+		//发送芯片解密命令等待芯片解密应答信号
+	case SEND_MSG_WAITING_CHIP_DECODE_RESPOND:
 
-		//等待握手应答信号
-	case STATUS_WAITING_HANDS_RESPOND:
-		//DO NOTHING
-		HandCommXmitFcb();
-		HandCommRecvChipDecodeXmit();
+		ChipDecodeProcess();
 		break;
-		//等待芯片解密信号, 索要API版本信息
-	case STATUS_WAITING_CHIP_DECODE:
-		ChipDecodeRecvFcb();
-		break;
-		//等待API版本确认信息
-	case STATUS_WAITING_API_VERSION:
+		//发送命令等待API版本确认信息
+	case SEND_MSG_WAITING_API_VERSION_OK:
 		
-		ApiVersionRecvFcb();
+		VerifyApiVersion();
 		break;
-		//API VERSION OK
-	case STATUS_API_OK:
-		//下发擦除命令
-		EraseSectorXmitFcb();
-
-		break;
-		//等待擦除命令应答
-	case STATUS_FLASH_ERASE_GOING:
-		EraseSectorXmitFcb();
-		EraseSectorRecvFcb();
-		break;
-		//擦除成功
-	case STATUS_FLASH_ERASED:
-		//下发编程请求命令
-		ProgramXmitFcb();
-
-		break;
-		//等待编程允许状态
-	case STATUS_PROGRAM_PERMIT_WAITING:
-		ProgramXmitFcb();
-		ProgramRecvFcb();
-		break;
-		//编程允许
-	case STATUS_PROGRAM_ENABLE:		
-		//下发BLOCK头
-		BlockHeadXmitFcb();
-		break;
-		//头BLOCK传输中
-	case STATUS_BLOCK_HEAD_WAITING:
-		BlockHeadRecvFcb();
-		break;
-		//下一个BLOCK头
-	case STATUS_NEXT_BLOCK_HEAD:
-		//下发BLOCK头
-		BlockHeadXmitFcb();
-		break;
-
-		//头传输结束,开始传输数据
-	case STATUS_BLOCK_HEAD_OK:
-
-		BlockDataXmitFcb();
-
-		//BLOCK数据传输过程中
-	case STATUS_BLOCK_DATATRANS_WAITING:
-
-		BlockDataRecvFcb();
-		break;
-
-		//BLOCK数据传输结束, 下发校验命令
-	case STATUS_BLOCK_DATATRANS_END:
-
-		BlockChecksumXmitFcb();
-		break;
-		//block校验中
-	case STATUS_BLOCK_CHECKSUM_WAITING:
-
-		BlockChecksumRecvFcb();
-		break;
-		//BLOCK校验OK, 下发编程命令
-	case STATUS_BLOCK_CHECKSUM_OK:
-
-		BlockProgStatusXmitFcb();
-		break;
-		//编程状态
-	case STATUS_BLOCK_PROGRAM_WAITING:
+		//发送擦除命令
+	case SEND_MSG_FLASH_ERASE:
 		
-		BlockProgStatusRecvFcb();
+		EraseSectorOrderXmit();
+		break;
+		//等待擦除完毕
+	case WAITING_MSG_ERASE_END:
+
+		EraseSectorStatusRecv();
+		//请求编程许可等待编程允许
+	case SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND:
+
+		ProgramPermissionGet();
+		break;
+		//传输BLOCK头
+	case SEND_MSG_BLOCK_HEAD:	
+
+		BlockHeadXmit();
+		break;
+		//等待传输BLOCK头结束标志
+	case WAITING_BLOCK_HEAD_TRANSFER_OK:
+
+		BlockHeadRecv();
+		break;
+		//传输BLOCK数据
+	case SEND_BLOCK_DATA:
+
+		BlockDataXmit();
+
+		//等待传输BLOCK数据完成标志
+	case WAITING_MSG__BLOCK_DATATRANS_END:
+
+		BlockDataRecv();
 		break;
 
-		//编程完毕
-	case STATUS_BLOCK_PROGRAM_COMPLETE:
+		//传输CHECKSUM
+	case SEND_MSG_BLOCK_CHECKSUM:
 
+		BlockCheckSumXmit();
 		break;
-		//文件传输结束
-	case STATUS_FILE_TRANS_END:
+		//等待BLOCK校验成功标志
+	case WAITING_MSG_BLOCK_CHECKSUM_OK:
 
-		FlashUpdateCompleteRecv();
+		BlockCheckSumRecv();
+		break;
+		//下发编程命令, 
+	case SEND_ORDER_PROGRAM:
+
+		BlockProgOrderXmit();
+		break;
+		//等待DSP回传编程状态
+	case WAITING_MSG_PROGRAM_OK:
+
+		BlockProgOrderRecv();
+		break;
+		//发送FLASH 校验命令,
+	case SEND_ORDER_FLASH_VERIFY:
+
+		VerifyXmit();
+		break;
+		// 等待FLASH 校验完毕消息
+	case WAITING_FLASH_VERIFY_OK:
+
+		VerifyRecv();
+		break;
+		//判断是否还有BLOCK需传输, 有则传输BLOCK头,无则向DSP发送重启命令
+	case SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING:
+
+		SendNextBlock_DspRestart();
+		break;
+		//等待DSP FLASHUPDATE成功标志
+	case WAITING_FLAG_FLASHUPDATE_COMPLETED:
+
+		FlashUpdateComplete();
 		break;
 
-		//校验中
-	case STATUS_FLASH_VERIFYING:
-
-		VerifyRecvFcb();
-		break;
-		//校验完毕
-	case STATUS_FLASH_UPDATE_OVER:
-
+	case FLASH_UPDATE_SUCCEED:
+		
+	case FLASH_UPDATE_OVER:
 
 		//状态机复位
 		//m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
 		break;
 	default:
 
-
 		//状态机复位
-		m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
+		m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_INVALID;
 
 		break;
 
@@ -236,44 +213,75 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 }
 
 
-/**********************************************************************
-HandCommXmitFcb-----握手信号下发
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::HandCommXmitFcb(VOID)
+INT32 CAN_FlashupdateMsgHandle::ParameterRefresh(VOID)
 {
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+	MsgReceivedDoneFlagSave = 0;
+	MsgErrorSave = 0;
+	NodeSelect = 0;
 
+	m_ucMsgClass = CAN_RESERVED_CLASS;
+	m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_INVALID;
+
+	VCI_CAN_OBJ msg_init;
+	msg_init.DataLen = 0;
+	msg_init.ExternFlag = 0;
+	msg_init.ID = 0;
+	msg_init.RemoteFlag = 0;
+	msg_init.Reserved[0] = 0;
+	msg_init.Reserved[1] = 0;
+	msg_init.Reserved[2] = 0;
+	msg_init.SendType = 0;
+	msg_init.TimeFlag = 0;
+	msg_init.Data[0] = 0;
+	msg_init.Data[1] = 0;
+	msg_init.Data[2] = 0;
+	msg_init.Data[3] = 0;
+	msg_init.Data[4] = 0;
+	msg_init.Data[5] = 0;
+	msg_init.Data[6] = 0;
+	msg_init.Data[7] = 0;
+
+	for (UINT16 i = 0; i < MESSAGE_NUM; ++i) {
+
+		tx_msg[i].Frame = msg_init;
+		rx_msg[i].Frame = msg_init;
+
+	}
+
+
+	for (BYTE i = 0; i < 0x3F; ++i) {
+
+		FlashUpdateProgress[i] = 0;
+		FlashUpdateErrorMsg[i].ereor_cnt = 0;
+		FlashUpdateErrorMsg[i].error_state_saved = FLASH_UPDATE_INVALID;
+		FlashUpdateErrorMsg[i].receive_done = FALSE;
+	}
+	BlockCount = 0;
+
+
+	NodeSelect = (m_u16UpdaingNodeAdd == 0x3F) ?
+		(UINT64)0xFFFF : ((UINT64)0x0001L << (Module_number - 1));
+	NodeSelect = (m_u16UpdaingNodeAdd == 0x0F) ?
+		(UINT64)0x8000 : NodeSelect;
+	m_pHostModuleItc->u16FlashupdateStatus = SEND_MSG_WAITING_HANDS_RESPOND;
+	//m_u16UpdaingNodeAdd = 0x10;
+	m_ucMsgClass = CAN_RESERVED_CLASS;
+	m_pHostModuleItc->u16FlashUpdateKernelFlag = 0x95;
+
+	return 0;
+}
+
+
+
+INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 	//发握手命令
 	TX_MESSAGE_FUNCTION(0, HANDS_COMM_SRVCODE, 4);
 
 	tx_msg->PackedMsg.MsgData[0] = HAND_COMM_QUERY & 0xFF;
 	tx_msg->PackedMsg.MsgData[1] = 0xFF & (HAND_COMM_QUERY >> 8);
-
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
-	//等待握手应答信号
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_WAITING_HANDS_RESPOND;
 
-	return ucErrCode;
-}
-
-/**********************************************************************
-HandCommRecvFcb-----握手信号接收
-
-Parameters:		=0xaa表示握手成功
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
-{
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	
 	CheckRxMessageNum();
@@ -298,55 +306,22 @@ INT32 CAN_FlashupdateMsgHandle::HandCommRecvChipDecodeXmit(VOID)
 
 		}
 	}
-	//等待解密信息反馈,启动等待延时TBD
-	MsgErrorProcess(STATUS_WAITING_CHIP_DECODE, TRUE);
-	//解密命令
-	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
+	//等待解密信息反馈
+	MsgErrorProcess(SEND_MSG_WAITING_CHIP_DECODE_RESPOND, FALSE);
 
-		MsgReceivedDoneFlagSave = 0;
-
-		TX_MESSAGE_FUNCTION(0, CHIP_DECODE_SRVCODE, 2);
-		VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-
-	}
 
 	return u16RetrunStatus;
 }
 
 
-/**********************************************************************
-ChipDecodeXmitFcb-----解密命令下发--保留
 
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ChipDecodeXmitFcb(VOID)
-{
-
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+INT32 CAN_FlashupdateMsgHandle::ChipDecodeProcess(VOID){
 
 
-	//	FlashupdateTaskReset();
-
-	return ucErrCode;
-}
-
-/**********************************************************************
-ChipDecodeRecvFcb-----解密信号接收
-
-Parameters:		=0xaa表示握手成功
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
-{
 	TX_MESSAGE_FUNCTION(0, CHIP_DECODE_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+
+
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	
 	CheckRxMessageNum();
@@ -371,55 +346,23 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeRecvFcb(VOID)
 			}
 		}
 	}
-	//等待解密信息反馈,启动等待延时
-	MsgErrorProcess(STATUS_WAITING_API_VERSION, TRUE);
-	//下发获取API版本信息
-	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
+	
+	MsgErrorProcess(SEND_MSG_WAITING_API_VERSION_OK, FALSE);
 
-		MsgReceivedDoneFlagSave = 0;
-
-		TX_MESSAGE_FUNCTION(0, API_VERSION_SRVCODE, 2);
-		VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-
-	}
 	return u16RetrunStatus;
 }
 
 
-/**********************************************************************
-ApiVersionXmitFcb-----API版本核对命令下发--保留
 
-Parameters:
+INT32 CAN_FlashupdateMsgHandle::VerifyApiVersion(VOID){
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ApiVersionXmitFcb(VOID)
-{
 
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
-
-	return ucErrCode;
-}
-
-/**********************************************************************
-ApiVersionRecvFcb-----API版本核对信号接收
-
-Parameters:		=0x6C表示版本匹配,允许擦除
-=14 版本不匹配
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
-{
 	UINT16 u16RetrunStatus = 0;
 	TX_MESSAGE_FUNCTION(0, API_VERSION_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+
+
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
@@ -442,57 +385,38 @@ INT32 CAN_FlashupdateMsgHandle::ApiVersionRecvFcb(VOID)
 
 		}
 	}
-	MsgErrorProcess(STATUS_API_OK, FALSE);
+	MsgErrorProcess(SEND_MSG_FLASH_ERASE, FALSE);
 	return u16RetrunStatus;
 }
 
 
-/**********************************************************************
-EraseSectorXmitFcb-----扇区擦除命令下发
 
-Parameters:
+INT32 CAN_FlashupdateMsgHandle::EraseSectorOrderXmit(VOID){
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::EraseSectorXmitFcb(VOID)
-{
 
 	TX_MESSAGE_FUNCTION(0, ERASE_SECTOR_SRVCODE, 4);
-
 	*((UINT16*)(tx_msg->PackedMsg.MsgData)) = ERASE_SECTOR_ALL;
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-	//下发擦除命令,等待擦除信息反馈
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_ERASE_GOING;
+
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_MSG_ERASE_END;
 
 	return 0;
 }
 
-/**********************************************************************
-EraseSectorRecvFcb-----扇区擦除命令反馈
 
-Parameters:
+INT32 CAN_FlashupdateMsgHandle::EraseSectorStatusRecv(VOID){
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::EraseSectorRecvFcb(VOID)
-{
-	UINT16 u16RetrunStatus = 0;
-	//下发擦除命令,等待擦除信息反馈
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_ERASE_GOING;
+
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
+	UINT16 u16RetrunStatus = 0;
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
 	for (int i = 0; i < msg_num; ++i) {
 
-		if (MESSAGE_FILLTER(ERASE_SECTOR_SRVCODE)){
+		if (MESSAGE_FILLTER(ERASE_SECTOR_SRVCODE)) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
-			if (ERASE_SUCCESFULL == u16RetrunStatus){
+			if (ERASE_SUCCESFULL == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
@@ -503,174 +427,53 @@ INT32 CAN_FlashupdateMsgHandle::EraseSectorRecvFcb(VOID)
 		}
 
 	}
-	MsgErrorProcess(STATUS_FLASH_ERASED, FALSE);
+	MsgErrorProcess(SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND, FALSE);
+
 	return u16RetrunStatus;
 }
 
-/**********************************************************************
-ProgramXmitFcb-----编程命令下发
+INT32 CAN_FlashupdateMsgHandle::ProgramPermissionGet(VOID){
 
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ProgramXmitFcb(VOID)
-{
 
 	TX_MESSAGE_FUNCTION(0, PROGRAM_SRVCODE, 2);
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_PROGRAM_PERMIT_WAITING;
-
-	return 0;
-}
-
-/**********************************************************************
-ProgramRecvFcb-----编程允许命令反馈
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::ProgramRecvFcb(VOID)
-{
 	UINT16 u16RetrunStatus = 0;
+	UINT16 msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
 	for (int i = 0; i < msg_num; ++i) {
 
-		if (MESSAGE_FILLTER(PROGRAM_SRVCODE)){
+		if (MESSAGE_FILLTER(PROGRAM_SRVCODE)) {
 
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 
-			if (PROGRAM_ENABLE == u16RetrunStatus){
+			if (PROGRAM_ENABLE == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 			}
 
-			else{
+			else {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
 			}
 
 		}
 	}
-	MsgErrorProcess(STATUS_PROGRAM_ENABLE, FALSE);
+	MsgErrorProcess(SEND_MSG_BLOCK_HEAD, FALSE);
+
 	return u16RetrunStatus;
 }
 
-/**********************************************************************
-VerifyXmitFcb-----校验命令下发
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::VerifyXmitFcb(VOID)
-{
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
 
-
-	return ucErrCode;
-}
-
-/**********************************************************************
-VerifyRecvFcb-----校验命令反馈
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::VerifyRecvFcb(VOID)
-{
-	UINT16 u16RetrunStatus = 0;
-
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
-	CheckRxMessageNum();
-	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
-
-	for (int i = 0; i < msg_num; ++i) {
-
-		if (MESSAGE_FILLTER(VERIFY_SRVCODE))
-		{
-			FlashUpdateProgress[rx_msg[i].PackedMsg.b6SourceMacId] = BlockCount;
-			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
-
-			//校验成功,升级成功,反馈给后台TBD
-			if (VERIFY_OK == u16RetrunStatus){
-
-				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
-				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
-			}
-			else{
-
-				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
-			}
-		}
-	}
-	MsgErrorProcess(STATUS_FLASH_VERIFYING, TRUE);
-	if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
-
-		MsgReceivedDoneFlagSave = 0;
-		//当前BLOCK号加1
-		BlockCount++;
-		if (BlockCount >= Solver->BlockCount)
-		{
-
-			TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
-			// send 0x00 restart dsp
-			tx_msg->PackedMsg.MsgData[0] = 0x00;
-			tx_msg->PackedMsg.MsgData[1] = 0x00;
-
-			tx_msg->PackedMsg.MsgData[2] = 0x00;
-			tx_msg->PackedMsg.MsgData[3] = 0x00;
-			tx_msg->PackedMsg.MsgData[4] = 0x00;
-			tx_msg->PackedMsg.MsgData[5] = 0x00;
-			VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_FILE_TRANS_END;
-
-		}
-
-		//还有BLOCK需传输,
-		else
-		{
-
-			//状态机回到传输下一个BLOCK头
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_NEXT_BLOCK_HEAD;
-		}
-	}
-	return 0;
-}
+INT32 CAN_FlashupdateMsgHandle::BlockHeadXmit(VOID){
 
 
-/**********************************************************************
-BlockHeadXmitFcb-----下传BLOCK大小及地址
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockHeadXmitFcb(VOID)
-{
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
 
 	TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
 	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver->EveryBlockDataNum[BlockCount] & 0x00FF);
@@ -682,26 +485,20 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadXmitFcb(VOID)
 	tx_msg->PackedMsg.MsgData[5] = (BYTE)((Solver->BlockAddress[BlockCount] >> 24) & 0x00FF);
 
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_HEAD_WAITING;
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_BLOCK_HEAD_TRANSFER_OK;
 
-return ucErrCode;
+	return 0;
 }
 
-/**********************************************************************
-BlockHeadRecvFcb-----下传BLOCK Head应答
 
-Parameters:
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockHeadRecvFcb(VOID)
-{
+INT32 CAN_FlashupdateMsgHandle::BlockHeadRecv(VOID){
+
+
 	UINT16 u16RetrunStatus = 0;
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
+
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
@@ -713,34 +510,27 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadRecvFcb(VOID)
 
 
 			//允许传有效数据,准备发数据信息
-			if (BLOCK_HEAD_OK == u16RetrunStatus){
+			if (BLOCK_HEAD_OK == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
 
 			else {
-				
+
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
 			}
 		}
 	}
-	MsgErrorProcess(STATUS_BLOCK_HEAD_OK, FALSE);
-	return 0;
+	MsgErrorProcess(SEND_BLOCK_DATA, FALSE);
+	return u16RetrunStatus;
 }
 
-/**********************************************************************
-BlockDataXmitFcb-----下传BLOCK数据
 
-Parameters:
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockDataXmitFcb(VOID)
-{
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
+
+
 
 	BYTE *msg_data_ptr = (BYTE*)(Solver->BlockData[BlockCount]);
 	UINT16 msg_num = (Solver->EveryBlockDataNum[BlockCount] << 1) / 6;
@@ -770,22 +560,14 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmitFcb(VOID)
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, msg_num + 2);
 
 
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_DATATRANS_WAITING;
-	
-	return ucErrCode;
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_MSG__BLOCK_DATATRANS_END;
+
+	return 0;
 }
 
-/**********************************************************************
-BlockDataRecvFcb-----下传BLOCK数据应答
 
-Parameters:
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockDataRecvFcb(VOID){
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
+INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
@@ -795,12 +577,12 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataRecvFcb(VOID){
 	UINT16 u16RetrunStatus = 0;
 
 	for (int i = 0; i < msg_num; ++i) {
-		if (MESSAGE_FILLTER(BLOCK_DATA_SRVCODE)){
+		if (MESSAGE_FILLTER(BLOCK_DATA_SRVCODE)) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 			// dsp接收到的帧数与下发帧数相同, 则传CHECKSUM
-			if (((Solver->EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= u16RetrunStatus){
-	
+			if (((Solver->EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= u16RetrunStatus) {
+
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
@@ -812,23 +594,16 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataRecvFcb(VOID){
 
 
 	}
-	MsgErrorProcess(STATUS_BLOCK_DATATRANS_END, FALSE);
-	return ucErrCode;
+	MsgErrorProcess(SEND_MSG_BLOCK_CHECKSUM, FALSE);
+	return u16RetrunStatus;
 }
 
 
 
-/**********************************************************************
-BlockChecksumXmitFcb-----下传BLOCK CheckSum数据
 
-Parameters:
+INT32 CAN_FlashupdateMsgHandle::BlockCheckSumXmit(VOID){
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockChecksumXmitFcb(VOID)
-{
+
 
 	TX_MESSAGE_FUNCTION(0, BLOCK_CHECKSUM_SRVCODE, 6)
 	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver->BlockCheckSum[BlockCount] & 0x00FF);
@@ -838,26 +613,21 @@ INT32 CAN_FlashupdateMsgHandle::BlockChecksumXmitFcb(VOID)
 
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_CHECKSUM_WAITING;
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_MSG_BLOCK_CHECKSUM_OK;
 
 
 	return 0;
 }
 
-/**********************************************************************
-BlockChecksumRecvFcb-----下传BLOCK数据校验和应答
 
-Parameters:
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockChecksumRecvFcb(VOID)
-{
+
+INT32 CAN_FlashupdateMsgHandle::BlockCheckSumRecv(VOID){
+
+
 	UINT16 u16RetrunStatus = 0;
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
+
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
@@ -865,10 +635,10 @@ INT32 CAN_FlashupdateMsgHandle::BlockChecksumRecvFcb(VOID)
 
 		if (MESSAGE_FILLTER(BLOCK_CHECKSUM_SRVCODE))
 		{
-			
+
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			if (CHECK_SUM_SUCCESFUL == u16RetrunStatus){
+			if (CHECK_SUM_SUCCESFUL == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
@@ -879,79 +649,140 @@ INT32 CAN_FlashupdateMsgHandle::BlockChecksumRecvFcb(VOID)
 			}
 		}
 	}
-	MsgErrorProcess(STATUS_BLOCK_CHECKSUM_OK, FALSE);
+	MsgErrorProcess(SEND_ORDER_PROGRAM, FALSE);
+
+	return u16RetrunStatus;
+}
+
+
+
+
+INT32 CAN_FlashupdateMsgHandle::BlockProgOrderXmit(VOID) {
+
+	TX_MESSAGE_FUNCTION(0, BLOCK_PROMG_STATUS_SRVCODE, 2);
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_MSG_PROGRAM_OK;
+	return 0;
+}
+
+
+
+
+INT32 CAN_FlashupdateMsgHandle::BlockProgOrderRecv(VOID){
+
+
+
+	UINT16 u16RetrunStatus = 0;
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+
+	CheckRxMessageNum();
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
+
+	for (int i = 0; i < msg_num; ++i) {
+
+		if (MESSAGE_FILLTER(BLOCK_PROMG_STATUS_SRVCODE))
+		{
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
+
+			if (PROGRAM_STATUS_SUCCESS == u16RetrunStatus) {
+
+				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
+			}
+			else {
+
+				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
+			}
+		}
+	}
+	MsgErrorProcess(SEND_ORDER_FLASH_VERIFY, FALSE);
+
+	return u16RetrunStatus;
+}
+
+
+
+
+INT32 CAN_FlashupdateMsgHandle::VerifyXmit(VOID) {
+
+
+	TX_MESSAGE_FUNCTION(0, VERIFY_SRVCODE, 2);
+	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+	m_pHostModuleItc->u16FlashupdateStatus = WAITING_FLASH_VERIFY_OK;
+
+	return 0;
+}
+
+
+
+INT32 CAN_FlashupdateMsgHandle::VerifyRecv(VOID){
+
+	UINT16 u16RetrunStatus = 0;
+	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	
+	CheckRxMessageNum();
+	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
+
+	for (int i = 0; i < msg_num; ++i) {
+
+		if (MESSAGE_FILLTER(VERIFY_SRVCODE))
+		{
+			FlashUpdateProgress[rx_msg[i].PackedMsg.b6SourceMacId] = BlockCount;
+			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
+
+			//校验成功,升级成功,反馈给后台TBD
+			if (VERIFY_OK == u16RetrunStatus){
+
+				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
+				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
+			}
+			else{
+
+				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
+			}
+		}
+	}
+	MsgErrorProcess(SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING, FALSE);
 	
 	return u16RetrunStatus;
 }
 
 
-/**********************************************************************
-BlockProgStatusXmitFcb-----获取FLASH编程状态信息
 
-Parameters:
+INT32 CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart(VOID) {
 
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockProgStatusXmitFcb(VOID){
-
-	UCHAR ucErrCode = CAN_MSG_HANDLE_OK;
-
-	TX_MESSAGE_FUNCTION(0, BLOCK_PROMG_STATUS_SRVCODE, 2);
-	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_BLOCK_PROGRAM_WAITING;
-	return ucErrCode;
-}
-
-/**********************************************************************
-BlockProgStatusRecvFcb-----DSP上传编程状态
-
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
-**********************************************************************/
-INT32 CAN_FlashupdateMsgHandle::BlockProgStatusRecvFcb(VOID)
-{
-	UINT16 u16RetrunStatus = 0;
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
-	
-	CheckRxMessageNum();
-VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
-
-for (int i = 0; i < msg_num; ++i) {
-
-	if (MESSAGE_FILLTER(BLOCK_PROMG_STATUS_SRVCODE))
+	BlockCount++;
+	if (BlockCount >= Solver->BlockCount)
 	{
-		u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-		if (BLOCK_RECV_DATA_OK == u16RetrunStatus) {
+		TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
+		// send 0x00 restart dsp
+		tx_msg->PackedMsg.MsgData[0] = 0x00;
+		tx_msg->PackedMsg.MsgData[1] = 0x00;
 
-			FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
-		}
-		else{
+		tx_msg->PackedMsg.MsgData[2] = 0x00;
+		tx_msg->PackedMsg.MsgData[3] = 0x00;
+		tx_msg->PackedMsg.MsgData[4] = 0x00;
+		tx_msg->PackedMsg.MsgData[5] = 0x00;
+		VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
+		m_pHostModuleItc->u16FlashupdateStatus = WAITING_FLAG_FLASHUPDATE_COMPLETED;
 
-			FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
-		}
 	}
-}
-MsgErrorProcess(STATUS_BLOCK_PROGRAM_WAITING, TRUE);
-if ((MsgReceivedDoneFlagSave &(NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
 
-	MsgReceivedDoneFlagSave = 0;
-	//下发FLASH校验命令
+	//还有BLOCK需传输,
+	else
+	{
 
-	TX_MESSAGE_FUNCTION(0, VERIFY_SRVCODE, 2);
-	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_VERIFYING;
-}
-return u16RetrunStatus;
+		//状态机回到传输下一个BLOCK头
+		m_pHostModuleItc->u16FlashupdateStatus = SEND_MSG_BLOCK_HEAD;
+	}
+
+	return 0;
 }
 
-DWORD CAN_FlashupdateMsgHandle::FlashUpdateCompleteRecv(VOID) {
+
+
+INT32 CAN_FlashupdateMsgHandle::FlashUpdateComplete(VOID) {
 
 	UINT16 u16RetrunStatus = 0;
 	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
@@ -967,16 +798,12 @@ DWORD CAN_FlashupdateMsgHandle::FlashUpdateCompleteRecv(VOID) {
 
 			if (FILE_TRANS_END == u16RetrunStatus) {
 
-				
+				m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_SUCCEED;
 			}
 		}
 	}
 
 	return u16RetrunStatus;
-}
-UINT32 CAN_FlashupdateMsgHandle::BlockMessageProcess_Packaged(void) {
-
-	return 0;
 }
 
 
@@ -1016,7 +843,7 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 		// if ALL of the waiting flash update module error, quit flashupdate at once
 		if ((MsgErrorSave & (NodeSelect << NodeOffset)) == (NodeSelect << NodeOffset)) {
 
-			m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_OVER;
+			m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_OVER;
 		}
 		// this state finish, refresh receive done state
 		for (UINT16 i = NodeOffset; i < max_node_num; ++i) {
@@ -1029,50 +856,3 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 
 
 
-int CAN_FlashupdateMsgHandle::ParameterRefresh()
-{
-	MsgReceivedDoneFlagSave = 0;
-	MsgErrorSave = 0;
-	NodeSelect = 0;
-	
-	m_ucMsgClass = CAN_RESERVED_CLASS;
-	m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
-
-	VCI_CAN_OBJ msg_init;
-	msg_init.DataLen = 0;
-	msg_init.ExternFlag = 0;
-	msg_init.ID = 0;
-	msg_init.RemoteFlag = 0;
-	msg_init.Reserved[0] = 0;
-	msg_init.Reserved[1] = 0;
-	msg_init.Reserved[2] = 0;
-	msg_init.SendType = 0;
-	msg_init.TimeFlag = 0;
-	msg_init.Data[0] = 0;
-	msg_init.Data[1] = 0;
-	msg_init.Data[2] = 0;
-	msg_init.Data[3] = 0;
-	msg_init.Data[4] = 0;
-	msg_init.Data[5] = 0;
-	msg_init.Data[6] = 0;
-	msg_init.Data[7] = 0;
-
-	for (UINT16 i = 0; i < MESSAGE_NUM; ++i) {
-
-		tx_msg[i].Frame = msg_init;
-		rx_msg[i].Frame = msg_init;
-
-	}
-
-
-	for (BYTE i = 0; i < 0x3F; ++i) {
-
-		FlashUpdateProgress[i] = 0;
-		FlashUpdateErrorMsg[i].ereor_cnt = 0;
-		FlashUpdateErrorMsg[i].error_state_saved = STATUS_FLASH_UPDATE_INVALID;
-		FlashUpdateErrorMsg[i].receive_done = FALSE;
-	}
-	BlockCount = 0;
-	
-	return 0;
-}
