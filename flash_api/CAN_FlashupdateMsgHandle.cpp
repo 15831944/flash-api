@@ -1,10 +1,18 @@
 #include "stdafx.h"
 #include "CAN_FlashupdateMsgHandle.h"
 #include "ControlCan.h"
-
+#include <map>
 //The third headfiles
 #include <stdio.h>
 #include <assert.h>
+
+
+typedef INT32(CAN_FlashupdateMsgHandle::*BrewFunction)(VOID);
+typedef std::map<_FLASHUPDATE_STATUS, BrewFunction> BrewMap;
+BrewMap g_brew_map;
+
+#define RegisterFlashUpdateFunction(FLASH_UPDATE_STSTUS, func) \
+    g_brew_map[FLASH_UPDATE_STSTUS] = &CAN_FlashupdateMsgHandle::func; \
 
 /**********************************************************************
 CAN_FlashupdateMsgHandle-----constructor function
@@ -58,8 +66,58 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
 		FlashUpdateErrorMsg[i].receive_done = FALSE;
 	}
 	BlockCount = 0;
+
+	RegisterFlashUpdateFunction(FLASH_UPDATE_INVALID, FlashUpdateInvalid);
+	RegisterFlashUpdateFunction(FLASH_UPDATE_START, ParameterRefresh);
+	RegisterFlashUpdateFunction(SEND_MSG_WAITING_HANDS_RESPOND, HandCommProcess);
+	RegisterFlashUpdateFunction(SEND_MSG_WAITING_CHIP_DECODE_RESPOND, ChipDecodeProcess);
+	RegisterFlashUpdateFunction(SEND_MSG_WAITING_API_VERSION_OK, VerifyApiVersion);
+	RegisterFlashUpdateFunction(SEND_MSG_FLASH_ERASE, EraseSectorOrderXmit);
+	RegisterFlashUpdateFunction(WAITING_MSG_ERASE_END, EraseSectorStatusRecv);
+	RegisterFlashUpdateFunction(SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND, ProgramPermissionGet);
+	RegisterFlashUpdateFunction(SEND_MSG_BLOCK_HEAD, BlockHeadXmit);
+	RegisterFlashUpdateFunction(WAITING_BLOCK_HEAD_TRANSFER_OK, BlockHeadRecv);
+	RegisterFlashUpdateFunction(SEND_BLOCK_DATA, BlockDataXmit);
+	RegisterFlashUpdateFunction(WAITING_MSG__BLOCK_DATATRANS_END, BlockDataRecv);
+	RegisterFlashUpdateFunction(SEND_MSG_BLOCK_CHECKSUM, BlockCheckSumXmit);
+	RegisterFlashUpdateFunction(WAITING_MSG_BLOCK_CHECKSUM_OK, BlockCheckSumRecv);
+	RegisterFlashUpdateFunction(SEND_ORDER_PROGRAM, BlockProgOrderXmit);
+	RegisterFlashUpdateFunction(WAITING_MSG_PROGRAM_OK, BlockProgOrderRecv);
+	RegisterFlashUpdateFunction(SEND_ORDER_FLASH_VERIFY, VerifyXmit);
+	RegisterFlashUpdateFunction(WAITING_FLASH_VERIFY_OK, VerifyRecv);
+	RegisterFlashUpdateFunction(SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING, SendNextBlock_DspRestart);
+	RegisterFlashUpdateFunction(WAITING_FLAG_FLASHUPDATE_COMPLETED, FlashUpdateComplete);
+	RegisterFlashUpdateFunction(FLASH_UPDATE_SUCCEED, FlashUpdateSucceed);
+	RegisterFlashUpdateFunction(FLASH_UPDATE_OVER, FlashUpdateOver);
+
 }
 
+BrewFunction FlashUpdateStateMachine[22]{
+
+	&CAN_FlashupdateMsgHandle::FlashUpdateInvalid,
+	&CAN_FlashupdateMsgHandle::ParameterRefresh,
+	&CAN_FlashupdateMsgHandle::HandCommProcess,
+	&CAN_FlashupdateMsgHandle::ChipDecodeProcess,
+	&CAN_FlashupdateMsgHandle::VerifyApiVersion,
+	&CAN_FlashupdateMsgHandle::EraseSectorOrderXmit,
+	&CAN_FlashupdateMsgHandle::EraseSectorStatusRecv,
+	&CAN_FlashupdateMsgHandle::ProgramPermissionGet,
+	&CAN_FlashupdateMsgHandle::BlockHeadXmit,
+	&CAN_FlashupdateMsgHandle::BlockHeadRecv,
+	&CAN_FlashupdateMsgHandle::BlockDataXmit,
+	&CAN_FlashupdateMsgHandle::BlockDataRecv,
+	&CAN_FlashupdateMsgHandle::BlockCheckSumXmit,
+	&CAN_FlashupdateMsgHandle::BlockCheckSumRecv,
+	&CAN_FlashupdateMsgHandle::BlockProgOrderXmit,
+	&CAN_FlashupdateMsgHandle::BlockProgOrderRecv,
+	&CAN_FlashupdateMsgHandle::VerifyXmit,
+	&CAN_FlashupdateMsgHandle::VerifyRecv,
+	&CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart,
+	&CAN_FlashupdateMsgHandle::FlashUpdateComplete,
+	&CAN_FlashupdateMsgHandle::FlashUpdateSucceed,
+	&CAN_FlashupdateMsgHandle::FlashUpdateOver
+
+};
 /**********************************************************************
 ~CAN_CfgMsgHandle-----destructor function
 
@@ -69,8 +127,8 @@ Return Value:
 Precondition:
 Postcondition:
 **********************************************************************/
-CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID)
-{
+CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID){
+
 	delete m_pHostModuleItc;
 	delete[]rx_msg;
 	delete[]tx_msg;
@@ -83,15 +141,15 @@ CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID)
 FlashUpdateRoutine-----FLAHS UPDATE主程序
 
 
-Parameters:
-
-Return Value:
-Precondition:
-Postcondition:
 **********************************************************************/
-VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
-{
 
+
+VOID CAN_FlashupdateMsgHandle::GetFlashUpdateRoutine(VOID)
+{
+	(this->*(g_brew_map[m_pHostModuleItc->u16FlashupdateStatus]))();
+
+	/*
+	//(this->*(FlashUpdateStateMachine[m_pHostModuleItc->u16FlashupdateStatus]))();
 	switch (m_pHostModuleItc->u16FlashupdateStatus)
 	{
 		//开始升级
@@ -99,7 +157,7 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 	case FLASH_UPDATE_START:
 
 		ParameterRefresh();
-
+		
 		break;
 
 		//发送握手命令并等待握手应答信号
@@ -209,10 +267,20 @@ VOID CAN_FlashupdateMsgHandle::FlashUpdateRoutine(VOID)
 
 	}
 
-
+	*/
 }
+INT32 CAN_FlashupdateMsgHandle::FlashUpdateInvalid(VOID) {
 
+	return 0;
+}
+INT32 CAN_FlashupdateMsgHandle::FlashUpdateSucceed(VOID) {
 
+	return 0;
+}
+INT32 CAN_FlashupdateMsgHandle::FlashUpdateOver(VOID) {
+
+	return 0;
+}
 INT32 CAN_FlashupdateMsgHandle::ParameterRefresh(VOID)
 {
 	MsgReceivedDoneFlagSave = 0;
@@ -272,7 +340,6 @@ INT32 CAN_FlashupdateMsgHandle::ParameterRefresh(VOID)
 }
 
 
-
 INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 	//发握手命令
 	TX_MESSAGE_FUNCTION(0, HANDS_COMM_SRVCODE, 4);
@@ -282,7 +349,7 @@ INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
@@ -290,7 +357,7 @@ INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 	UINT16 u16RetrunStatus = 0;
 
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		
 		if (MESSAGE_FILLTER(HANDS_COMM_SRVCODE))
@@ -322,14 +389,14 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeProcess(VOID){
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
 	UINT16 u16RetrunStatus = 0;
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 		if (MESSAGE_FILLTER(CHIP_DECODE_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
@@ -362,11 +429,11 @@ INT32 CAN_FlashupdateMsgHandle::VerifyApiVersion(VOID){
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(API_VERSION_SRVCODE))
 		{
@@ -407,12 +474,12 @@ INT32 CAN_FlashupdateMsgHandle::EraseSectorOrderXmit(VOID){
 INT32 CAN_FlashupdateMsgHandle::EraseSectorStatusRecv(VOID){
 
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	UINT16 u16RetrunStatus = 0;
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(ERASE_SECTOR_SRVCODE)) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
@@ -439,12 +506,12 @@ INT32 CAN_FlashupdateMsgHandle::ProgramPermissionGet(VOID){
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
 	UINT16 u16RetrunStatus = 0;
-	UINT16 msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(PROGRAM_SRVCODE)) {
 
@@ -497,12 +564,12 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadRecv(VOID){
 
 	UINT16 u16RetrunStatus = 0;
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(BLOCK_HEAD_SRVCODE))
 		{
@@ -533,7 +600,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 
 
 	BYTE *msg_data_ptr = (BYTE*)(Solver->BlockData[BlockCount]);
-	UINT16 msg_num = (Solver->EveryBlockDataNum[BlockCount] << 1) / 6;
+	DWORD msg_num = (Solver->EveryBlockDataNum[BlockCount] << 1) / 6;
 	for (UINT16 i = 0; i < msg_num + 2; ++i) {
 
 		TX_MESSAGE_FUNCTION(i, BLOCK_DATA_SRVCODE, 8);
@@ -569,14 +636,14 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 
 INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
 	UINT16 u16RetrunStatus = 0;
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 		if (MESSAGE_FILLTER(BLOCK_DATA_SRVCODE)) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
@@ -626,12 +693,12 @@ INT32 CAN_FlashupdateMsgHandle::BlockCheckSumRecv(VOID){
 
 
 	UINT16 u16RetrunStatus = 0;
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(BLOCK_CHECKSUM_SRVCODE))
 		{
@@ -674,12 +741,12 @@ INT32 CAN_FlashupdateMsgHandle::BlockProgOrderRecv(VOID){
 
 
 	UINT16 u16RetrunStatus = 0;
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(BLOCK_PROMG_STATUS_SRVCODE))
 		{
@@ -718,12 +785,12 @@ INT32 CAN_FlashupdateMsgHandle::VerifyXmit(VOID) {
 INT32 CAN_FlashupdateMsgHandle::VerifyRecv(VOID){
 
 	UINT16 u16RetrunStatus = 0;
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 	
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(VERIFY_SRVCODE))
 		{
@@ -785,12 +852,12 @@ INT32 CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart(VOID) {
 INT32 CAN_FlashupdateMsgHandle::FlashUpdateComplete(VOID) {
 
 	UINT16 u16RetrunStatus = 0;
-	int msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
+	DWORD msg_num = VCI_GetReceiveNum(device_type, device_ind, can_ind);
 
 	CheckRxMessageNum();
 	VCI_Receive(device_type, device_ind, can_ind, &(rx_msg->Frame), msg_num, 1);
 
-	for (int i = 0; i < msg_num; ++i) {
+	for (DWORD i = 0; i < msg_num; ++i) {
 
 		if (MESSAGE_FILLTER(BLOCK_HEAD_SRVCODE))
 		{

@@ -11,7 +11,6 @@
 #include "ControlCAN.h"
 #include "Blob.h"
 
-
 #define MAX_ERROR_MSG	100
 #define MESSAGE_NUM 500
 #define CheckRxMessageNum() if (msg_num == 0)return 0;\
@@ -32,6 +31,7 @@
 	tx_msg[MSG_NUMBER].PackedMsg.b1RsRq = RQ_MSG;\
 	tx_msg[MSG_NUMBER].PackedMsg.b6SourceMacId = MAC_ID_MON;\
 	tx_msg[MSG_NUMBER].PackedMsg.DataLen = DLC;\
+
 
 //-----------------------------------------------------------------------------
 //Macro definition
@@ -365,8 +365,9 @@ public:
 	CAN_FlashupdateMsgHandle(Blob *solver);
 	virtual ~CAN_FlashupdateMsgHandle(VOID);
 
-	VOID FlashUpdateRoutine(VOID);
+	VOID GetFlashUpdateRoutine(VOID);
 	//---------------------------------
+	INT32 FlashUpdateInvalid(VOID);
 	INT32 ParameterRefresh(VOID);
 	INT32 HandCommProcess(VOID);
 	INT32 ChipDecodeProcess(VOID);
@@ -386,7 +387,8 @@ public:
 	INT32 VerifyRecv(VOID);
 	INT32 SendNextBlock_DspRestart(VOID);
 	INT32 FlashUpdateComplete(VOID);
-
+	INT32 FlashUpdateSucceed(VOID);
+	INT32 FlashUpdateOver(VOID);
 	//当前正在升级的节点地址
 	UINT16 m_u16UpdaingNodeAdd;
 
@@ -426,5 +428,6 @@ public:
 
 	_ERROR_MESSAGE  FlashUpdateErrorMsgBak[0x3F];
 	_HOST_MODULE_ITC_T m_pHostModuleItcBak;
-	
+
 };
+
