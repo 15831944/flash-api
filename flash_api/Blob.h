@@ -10,8 +10,11 @@ public:
 
 	CString outfilepath;
 
+	char	BootLoaderFile[1000000];
+	DWORD	BootFileCount;
 	explicit Blob(CString file_path);
 	~Blob();
 	int Hex_file_resolve();
+	int BootLoaderFileResolve();
 };
 

@@ -11,9 +11,40 @@ typedef INT32(CAN_FlashupdateMsgHandle::*BrewFunction)(VOID);
 typedef std::map<_FLASHUPDATE_STATUS, BrewFunction> BrewMap;
 BrewMap g_brew_map;
 
-#define RegisterFlashUpdateFunction(FLASH_UPDATE_STSTUS, func) \
-    g_brew_map[FLASH_UPDATE_STSTUS] = &CAN_FlashupdateMsgHandle::func; \
 
+#define RegisterFlashUpdateFunction(FLASH_UPDATE_STSTUS, func) \
+class __Registerer_##func { \
+ public: /* NOLINT */ \
+  __Registerer_##func() { \
+    g_brew_map[FLASH_UPDATE_STSTUS] = &CAN_FlashupdateMsgHandle::func; \
+  } \
+}; \
+__Registerer_##func g_registerer_##func; \
+
+
+#define RegisterFunction()\
+RegisterFlashUpdateFunction(FLASH_UPDATE_INVALID, FlashUpdateInvalid);\
+RegisterFlashUpdateFunction(FLASH_UPDATE_START, ParameterRefresh);\
+RegisterFlashUpdateFunction(SEND_MSG_WAITING_HANDS_RESPOND, HandCommProcess);\
+RegisterFlashUpdateFunction(SEND_MSG_WAITING_CHIP_DECODE_RESPOND, ChipDecodeProcess);\
+RegisterFlashUpdateFunction(SEND_MSG_WAITING_API_VERSION_OK, VerifyApiVersion);\
+RegisterFlashUpdateFunction(SEND_MSG_FLASH_ERASE, EraseSectorOrderXmit);\
+RegisterFlashUpdateFunction(WAITING_MSG_ERASE_END, EraseSectorStatusRecv);\
+RegisterFlashUpdateFunction(SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND, ProgramPermissionGet);\
+RegisterFlashUpdateFunction(SEND_MSG_BLOCK_HEAD, BlockHeadXmit);\
+RegisterFlashUpdateFunction(WAITING_BLOCK_HEAD_TRANSFER_OK, BlockHeadRecv);\
+RegisterFlashUpdateFunction(SEND_BLOCK_DATA, BlockDataXmit);\
+RegisterFlashUpdateFunction(WAITING_MSG__BLOCK_DATATRANS_END, BlockDataRecv);\
+RegisterFlashUpdateFunction(SEND_MSG_BLOCK_CHECKSUM, BlockCheckSumXmit);\
+RegisterFlashUpdateFunction(WAITING_MSG_BLOCK_CHECKSUM_OK, BlockCheckSumRecv);\
+RegisterFlashUpdateFunction(SEND_ORDER_PROGRAM, BlockProgOrderXmit);\
+RegisterFlashUpdateFunction(WAITING_MSG_PROGRAM_OK, BlockProgOrderRecv);\
+RegisterFlashUpdateFunction(SEND_ORDER_FLASH_VERIFY, VerifyXmit);\
+RegisterFlashUpdateFunction(WAITING_FLASH_VERIFY_OK, VerifyRecv);\
+RegisterFlashUpdateFunction(SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING, SendNextBlock_DspRestart);\
+RegisterFlashUpdateFunction(WAITING_FLAG_FLASHUPDATE_COMPLETED, FlashUpdateComplete);\
+RegisterFlashUpdateFunction(FLASH_UPDATE_SUCCEED, FlashUpdateSucceed);\
+RegisterFlashUpdateFunction(FLASH_UPDATE_OVER, FlashUpdateOver);\
 /**********************************************************************
 CAN_FlashupdateMsgHandle-----constructor function
 
@@ -47,16 +78,18 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
 	msg_init.Data[5] = 0;
 	msg_init.Data[6] = 0;
 	msg_init.Data[7] = 0;
-	tx_msg = new CAN_PACKED_PROTOCOL_U[MESSAGE_NUM];
+	tx_msg = new CAN_PACKED_PROTOCOL_U[MESSAGE_NUM*100];
 	rx_msg = new CAN_PACKED_PROTOCOL_U[MESSAGE_NUM];
 
 	for (UINT16 i = 0; i < MESSAGE_NUM; ++i) {
 
-		tx_msg[i].Frame = msg_init;
-		rx_msg[i].Frame = msg_init;
-	
-	}
 
+		rx_msg[i].Frame = msg_init;
+	}
+	for (UINT16 j = 0; j < 50000; ++j) {
+
+		tx_msg[j].Frame = msg_init;
+	}
 	
 	for (BYTE i = 0; i < 0x3F; ++i) {
 
@@ -66,32 +99,13 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
 		FlashUpdateErrorMsg[i].receive_done = FALSE;
 	}
 	BlockCount = 0;
-
-	RegisterFlashUpdateFunction(FLASH_UPDATE_INVALID, FlashUpdateInvalid);
-	RegisterFlashUpdateFunction(FLASH_UPDATE_START, ParameterRefresh);
-	RegisterFlashUpdateFunction(SEND_MSG_WAITING_HANDS_RESPOND, HandCommProcess);
-	RegisterFlashUpdateFunction(SEND_MSG_WAITING_CHIP_DECODE_RESPOND, ChipDecodeProcess);
-	RegisterFlashUpdateFunction(SEND_MSG_WAITING_API_VERSION_OK, VerifyApiVersion);
-	RegisterFlashUpdateFunction(SEND_MSG_FLASH_ERASE, EraseSectorOrderXmit);
-	RegisterFlashUpdateFunction(WAITING_MSG_ERASE_END, EraseSectorStatusRecv);
-	RegisterFlashUpdateFunction(SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND, ProgramPermissionGet);
-	RegisterFlashUpdateFunction(SEND_MSG_BLOCK_HEAD, BlockHeadXmit);
-	RegisterFlashUpdateFunction(WAITING_BLOCK_HEAD_TRANSFER_OK, BlockHeadRecv);
-	RegisterFlashUpdateFunction(SEND_BLOCK_DATA, BlockDataXmit);
-	RegisterFlashUpdateFunction(WAITING_MSG__BLOCK_DATATRANS_END, BlockDataRecv);
-	RegisterFlashUpdateFunction(SEND_MSG_BLOCK_CHECKSUM, BlockCheckSumXmit);
-	RegisterFlashUpdateFunction(WAITING_MSG_BLOCK_CHECKSUM_OK, BlockCheckSumRecv);
-	RegisterFlashUpdateFunction(SEND_ORDER_PROGRAM, BlockProgOrderXmit);
-	RegisterFlashUpdateFunction(WAITING_MSG_PROGRAM_OK, BlockProgOrderRecv);
-	RegisterFlashUpdateFunction(SEND_ORDER_FLASH_VERIFY, VerifyXmit);
-	RegisterFlashUpdateFunction(WAITING_FLASH_VERIFY_OK, VerifyRecv);
-	RegisterFlashUpdateFunction(SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING, SendNextBlock_DspRestart);
-	RegisterFlashUpdateFunction(WAITING_FLAG_FLASHUPDATE_COMPLETED, FlashUpdateComplete);
-	RegisterFlashUpdateFunction(FLASH_UPDATE_SUCCEED, FlashUpdateSucceed);
-	RegisterFlashUpdateFunction(FLASH_UPDATE_OVER, FlashUpdateOver);
-
+	BootLoaderCount = 0;
+	RegisterFunction();
 }
 
+
+
+/*
 BrewFunction FlashUpdateStateMachine[22]{
 
 	&CAN_FlashupdateMsgHandle::FlashUpdateInvalid,
@@ -117,7 +131,7 @@ BrewFunction FlashUpdateStateMachine[22]{
 	&CAN_FlashupdateMsgHandle::FlashUpdateSucceed,
 	&CAN_FlashupdateMsgHandle::FlashUpdateOver
 
-};
+};*/
 /**********************************************************************
 ~CAN_CfgMsgHandle-----destructor function
 
@@ -283,6 +297,7 @@ INT32 CAN_FlashupdateMsgHandle::FlashUpdateOver(VOID) {
 }
 INT32 CAN_FlashupdateMsgHandle::ParameterRefresh(VOID)
 {
+	BootLoaderCount = 0;
 	MsgReceivedDoneFlagSave = 0;
 	MsgErrorSave = 0;
 	NodeSelect = 0;
@@ -921,5 +936,40 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 	}
 }
 
+VOID CAN_FlashupdateMsgHandle::GetBootLoaderRoutine(VOID) {
 
+	msg_data_ptr = (BYTE*)(Solver->BootLoaderFile);
+	//DWORD msg_num = (Solver->BootFileCount)/2;
+	
+	if (BootLoaderCount > (Solver->BootFileCount)) {
+
+		//m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_SUCCEED;
+		return;
+	}
+	INT32 remain_tx_msg_num = Solver->BootFileCount - BootLoaderCount;
+	if (BootLoaderCount > 97000) {
+	
+		int a = 0;
+	}
+	msg_data_ptr = msg_data_ptr + BootLoaderCount;
+	INT32 tx_msg_num = (remain_tx_msg_num > 1000) ? 1000 : remain_tx_msg_num;
+	for (UINT16 i = 0; i < tx_msg_num/2; ++i) {
+
+		tx_msg[i].Frame.RemoteFlag = 0;			
+		tx_msg[i].Frame.ExternFlag = 0;				
+		tx_msg[i].Frame.ID = 0x0001;
+		tx_msg[i].Frame.DataLen = 2;
+
+		tx_msg[i].Frame.Data[0] = *msg_data_ptr;
+		++msg_data_ptr;
+		tx_msg[i].Frame.Data[1] = *msg_data_ptr;
+		++msg_data_ptr;
+	}
+	
+	int wrong = VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, tx_msg_num/2);
+	
+	BootLoaderCount = BootLoaderCount + 1000;
+
+	return;
+}
 

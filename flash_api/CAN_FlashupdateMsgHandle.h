@@ -392,6 +392,8 @@ public:
 	//当前正在升级的节点地址
 	UINT16 m_u16UpdaingNodeAdd;
 
+
+	VOID GetBootLoaderRoutine(VOID);
 private:
 
 	UCHAR m_ucMsgClass;
@@ -414,8 +416,10 @@ private:
 
 	UINT16  BlockCount;
 	Blob *Solver;
+	
+	UINT32 BootLoaderCount;
 public:
-
+	BYTE * msg_data_ptr;
 	// 0x00, 0x10, 0x20
 	UINT16 NodeOffset;
 	// 1 - 16

@@ -28,7 +28,84 @@ Blob::Blob(CString file_path) :outfilepath(file_path)
 
 Blob::~Blob()
 {
+
 }
+
+int Blob::BootLoaderFileResolve() {
+
+	CFile file;
+	CFileException ex;
+
+	if (!file.Open(_T("./target_file_boot.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex)) {
+
+		AfxMessageBox(_T("请检查待升级文件！"));
+		return FALSE;
+	}
+
+	DWORD file_length = (DWORD)file.GetLength();
+	if (file.GetLength() > 1000000L) return FALSE;
+
+	char *p = new char[file_length];
+	file.Read(p, file_length);
+	file.Close();
+
+
+	char *resolve_hex_file = new char[file_length];
+
+	for (DWORD i = 0; i < file_length; ++i) {
+
+		resolve_hex_file[i] = 0;
+	}
+
+	DWORD file_count = 0;
+	// Resolve Hex File, // Except ':', '/r', '/n',
+	// Place in resolve_hex_file[LINE_COUNT][EVERY_LINE_CHAR_NUMBER]
+	for (DWORD i = 0; i < file_length; ++i) {
+
+		if ((p[i] == 'A') || (p[i] == 'B') || (p[i] == 'C') ||
+			(p[i] == 'D') || (p[i] == 'E') || (p[i] == 'F') ||
+			(p[i] == '1') || (p[i] == '2') || (p[i] == '3') ||
+			(p[i] == '4') || (p[i] == '5') || (p[i] == '6') ||
+			(p[i] == '7') || (p[i] == '8') || (p[i] == '9') ||
+			(p[i] == '0'))
+		{
+
+			resolve_hex_file[file_count] = p[i];
+			file_count++;
+		}
+	}
+	BootFileCount = 0;
+	for (DWORD i = 0; i < file_count; ++i) {
+
+		if ((resolve_hex_file[i] == 'A') || (resolve_hex_file[i] == 'B') || (resolve_hex_file[i] == 'C') ||
+			(resolve_hex_file[i] == 'D') || (resolve_hex_file[i] == 'E') || (resolve_hex_file[i] == 'F')) {
+
+			if (i % 2) {
+
+				BootLoaderFile[i / 2] |= resolve_hex_file[i] - 55;
+			}
+			else {
+
+				BootLoaderFile[i / 2] = ((resolve_hex_file[i] - 55) << 4) & 0xF0;
+			}
+		}
+		else {
+
+			if (i % 2) {
+
+				BootLoaderFile[i / 2] |= resolve_hex_file[i] - 48;
+			}
+			else {
+
+				BootLoaderFile[i / 2] = ((resolve_hex_file[i] - 48) << 4) & 0xF0;
+			}
+		}
+
+	}
+	BootFileCount = file_count / 2;
+	return TRUE;
+}
+
 
 
 int Blob::Hex_file_resolve()
@@ -255,7 +332,7 @@ int Blob::Hex_file_resolve()
 
 
 
-
+	BlockCount = 0;
 	// place message to block; waiting fir transmit, finally, resolved hex file successfully
 	UINT16 BlockCountBak = 0;
 	for (DWORD i = 0; i < new_line_count; ++i) {
