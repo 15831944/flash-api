@@ -7,7 +7,7 @@
 #include "ControlCAN.h"
 #include "CAN_FLASHupdateMsgHandle.h"
 #include <afxdb.h>
-
+#include <stdexcept>
 Blob::Blob(CString file_path) :outfilepath(file_path)
 {
 
@@ -35,15 +35,13 @@ int Blob::BootLoaderFileResolve() {
 
 	CFile file;
 	CFileException ex;
-
-	if (!file.Open(_T("./target_file_boot.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex)) {
-
-		AfxMessageBox(_T("请检查待升级文件！"));
-		return FALSE;
-	}
-
+	CString tarfile_path;
+	if (!file.Open(_T("./target_file_boot.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex))
+		throw std::runtime_error("Please check flashupdate file!!!");
+	
 	DWORD file_length = (DWORD)file.GetLength();
-	if (file.GetLength() > 1000000L) return FALSE;
+	if (file.GetLength() > 1000000L) 
+		throw std::runtime_error("file too large!!!");
 
 	char *p = new char[file_length];
 	file.Read(p, file_length);
@@ -133,16 +131,14 @@ int Blob::Hex_file_resolve()
 	if (IDNO == AfxMessageBox(_T("Are you sure Flashupdate?"), MB_YESNO)) {
 
 		system("del target_file.hex");
-		return FALSE;
+		throw std::runtime_error("flash update failed!");
 	}
-	if (!file.Open(_T("./target_file.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex)) {
-
-		AfxMessageBox(_T("请检查待升级文件！"));
-		return FALSE;
-	}
+	if (!file.Open(_T("./target_file.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex))
+		throw std::runtime_error("Please check flashupdate file!!!");
 
 	DWORD file_length = (DWORD)file.GetLength();
-	if (file.GetLength() > 1000000L) return FALSE;
+	if (file.GetLength() > 1000000L) 
+		throw std::runtime_error("file too large!!!");
 
 	char *p = new char[file_length];
 	file.Read(p, file_length);
@@ -188,12 +184,14 @@ int Blob::Hex_file_resolve()
 
 			resolve_hex_file[line_count][every_line_count[line_count]] = p[i];
 			every_line_count[line_count]++;
-			if (every_line_count[line_count] > EVERY_LINE_CHAR_NUMBER) return FALSE;
+			if (every_line_count[line_count] > EVERY_LINE_CHAR_NUMBER) 
+				throw std::runtime_error("file too many columns!!!");
 		}
 		if (p[i] == '\n') {
 
 			line_count++;
-			if (every_line_count[line_count] > LINE_COUNT) return FALSE;
+			if (every_line_count[line_count] > LINE_COUNT)
+				throw std::runtime_error("file too Rows!!!");
 		}
 	}
 

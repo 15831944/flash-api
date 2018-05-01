@@ -14,7 +14,7 @@ public:
 	DWORD	BootFileCount;
 	explicit Blob(CString file_path);
 	~Blob();
-	int Hex_file_resolve();
-	int BootLoaderFileResolve();
+	int Hex_file_resolve() ;
+	int BootLoaderFileResolve() ;
 };
 

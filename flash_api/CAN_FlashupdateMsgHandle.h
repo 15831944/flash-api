@@ -362,7 +362,7 @@ typedef union CAN_PACKED_PROTOCOL_STRUCT
 class CAN_FlashupdateMsgHandle
 {
 public:
-	CAN_FlashupdateMsgHandle(Blob *solver);
+	CAN_FlashupdateMsgHandle(const Blob &solver);
 	virtual ~CAN_FlashupdateMsgHandle(VOID);
 
 	VOID GetFlashUpdateRoutine(VOID);
@@ -415,7 +415,7 @@ private:
 
 
 	UINT16  BlockCount;
-	Blob *Solver;
+	const Blob    &Solver;
 	
 	UINT32 BootLoaderCount;
 public:

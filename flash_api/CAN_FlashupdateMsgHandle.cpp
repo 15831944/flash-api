@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-
+// A simple registry for caffe commands.
 typedef INT32(CAN_FlashupdateMsgHandle::*BrewFunction)(VOID);
 typedef std::map<_FLASHUPDATE_STATUS, BrewFunction> BrewMap;
 BrewMap g_brew_map;
@@ -54,7 +54,7 @@ Return Value:
 Precondition:
 Postcondition:
 **********************************************************************/
-CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(Blob *solver):Solver(solver)
+CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(const Blob &solver):Solver(solver)
 {
 	m_ucMsgClass = CAN_RESERVED_CLASS;
 	m_pHostModuleItc = new _HOST_MODULE_ITC_T;
@@ -134,12 +134,6 @@ BrewFunction FlashUpdateStateMachine[22]{
 };*/
 /**********************************************************************
 ~CAN_CfgMsgHandle-----destructor function
-
-
-Parameters:
-Return Value:
-Precondition:
-Postcondition:
 **********************************************************************/
 CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID){
 
@@ -153,135 +147,22 @@ CAN_FlashupdateMsgHandle::~CAN_FlashupdateMsgHandle(VOID){
 
 /**********************************************************************
 FlashUpdateRoutine-----FLAHS UPDATE主程序
-
-
 **********************************************************************/
 
 
 VOID CAN_FlashupdateMsgHandle::GetFlashUpdateRoutine(VOID)
 {
-	(this->*(g_brew_map[m_pHostModuleItc->u16FlashupdateStatus]))();
+	if (m_pHostModuleItc->u16FlashupdateStatus) {
 
-	/*
-	//(this->*(FlashUpdateStateMachine[m_pHostModuleItc->u16FlashupdateStatus]))();
-	switch (m_pHostModuleItc->u16FlashupdateStatus)
-	{
-		//开始升级
-		//获取升级对象
-	case FLASH_UPDATE_START:
-
-		ParameterRefresh();
-		
-		break;
-
-		//发送握手命令并等待握手应答信号
-	case SEND_MSG_WAITING_HANDS_RESPOND:
-
-		HandCommProcess();
-		break;
-		//发送芯片解密命令等待芯片解密应答信号
-	case SEND_MSG_WAITING_CHIP_DECODE_RESPOND:
-
-		ChipDecodeProcess();
-		break;
-		//发送命令等待API版本确认信息
-	case SEND_MSG_WAITING_API_VERSION_OK:
-		
-		VerifyApiVersion();
-		break;
-		//发送擦除命令
-	case SEND_MSG_FLASH_ERASE:
-		
-		EraseSectorOrderXmit();
-		break;
-		//等待擦除完毕
-	case WAITING_MSG_ERASE_END:
-
-		EraseSectorStatusRecv();
-		//请求编程许可等待编程允许
-	case SEND_MSG_PROGRAM_PERMIT_WAITING_RESPOND:
-
-		ProgramPermissionGet();
-		break;
-		//传输BLOCK头
-	case SEND_MSG_BLOCK_HEAD:	
-
-		BlockHeadXmit();
-		break;
-		//等待传输BLOCK头结束标志
-	case WAITING_BLOCK_HEAD_TRANSFER_OK:
-
-		BlockHeadRecv();
-		break;
-		//传输BLOCK数据
-	case SEND_BLOCK_DATA:
-
-		BlockDataXmit();
-
-		//等待传输BLOCK数据完成标志
-	case WAITING_MSG__BLOCK_DATATRANS_END:
-
-		BlockDataRecv();
-		break;
-
-		//传输CHECKSUM
-	case SEND_MSG_BLOCK_CHECKSUM:
-
-		BlockCheckSumXmit();
-		break;
-		//等待BLOCK校验成功标志
-	case WAITING_MSG_BLOCK_CHECKSUM_OK:
-
-		BlockCheckSumRecv();
-		break;
-		//下发编程命令, 
-	case SEND_ORDER_PROGRAM:
-
-		BlockProgOrderXmit();
-		break;
-		//等待DSP回传编程状态
-	case WAITING_MSG_PROGRAM_OK:
-
-		BlockProgOrderRecv();
-		break;
-		//发送FLASH 校验命令,
-	case SEND_ORDER_FLASH_VERIFY:
-
-		VerifyXmit();
-		break;
-		// 等待FLASH 校验完毕消息
-	case WAITING_FLASH_VERIFY_OK:
-
-		VerifyRecv();
-		break;
-		//判断是否还有BLOCK需传输, 有则传输BLOCK头,无则向DSP发送重启命令
-	case SEND_NEXT_BLOCK_OR_SEND_DSP_RESTART_MSG_WAITING:
-
-		SendNextBlock_DspRestart();
-		break;
-		//等待DSP FLASHUPDATE成功标志
-	case WAITING_FLAG_FLASHUPDATE_COMPLETED:
-
-		FlashUpdateComplete();
-		break;
-
-	case FLASH_UPDATE_SUCCEED:
-		
-	case FLASH_UPDATE_OVER:
-
-		//状态机复位
-		//m_pHostModuleItc->u16FlashupdateStatus = STATUS_FLASH_UPDATE_INVALID;
-		break;
-	default:
-
-		//状态机复位
-		m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_INVALID;
-
-		break;
-
+		(this->*(g_brew_map[m_pHostModuleItc->u16FlashupdateStatus]))();
 	}
+	else {
 
-	*/
+		for (BrewMap::iterator it = g_brew_map.begin();
+			it != g_brew_map.end(); ++it) {
+			
+		}
+	}
 }
 INT32 CAN_FlashupdateMsgHandle::FlashUpdateInvalid(VOID) {
 
@@ -558,13 +439,13 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadXmit(VOID){
 
 
 	TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
-	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver->EveryBlockDataNum[BlockCount] & 0x00FF);
-	tx_msg->PackedMsg.MsgData[1] = (BYTE)((Solver->EveryBlockDataNum[BlockCount] >> 8) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver.EveryBlockDataNum[BlockCount] & 0x00FF);
+	tx_msg->PackedMsg.MsgData[1] = (BYTE)((Solver.EveryBlockDataNum[BlockCount] >> 8) & 0x00FF);
 
-	tx_msg->PackedMsg.MsgData[2] = (BYTE)(Solver->BlockAddress[BlockCount] & 0x00FF);
-	tx_msg->PackedMsg.MsgData[3] = (BYTE)((Solver->BlockAddress[BlockCount] >> 8) & 0x00FF);
-	tx_msg->PackedMsg.MsgData[4] = (BYTE)((Solver->BlockAddress[BlockCount] >> 16) & 0x00FF);
-	tx_msg->PackedMsg.MsgData[5] = (BYTE)((Solver->BlockAddress[BlockCount] >> 24) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[2] = (BYTE)(Solver.BlockAddress[BlockCount] & 0x00FF);
+	tx_msg->PackedMsg.MsgData[3] = (BYTE)((Solver.BlockAddress[BlockCount] >> 8) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[4] = (BYTE)((Solver.BlockAddress[BlockCount] >> 16) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[5] = (BYTE)((Solver.BlockAddress[BlockCount] >> 24) & 0x00FF);
 
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 	m_pHostModuleItc->u16FlashupdateStatus = WAITING_BLOCK_HEAD_TRANSFER_OK;
@@ -614,8 +495,8 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 
 
 
-	BYTE *msg_data_ptr = (BYTE*)(Solver->BlockData[BlockCount]);
-	DWORD msg_num = (Solver->EveryBlockDataNum[BlockCount] << 1) / 6;
+	BYTE *msg_data_ptr = (BYTE*)(Solver.BlockData[BlockCount]);
+	DWORD msg_num = (Solver.EveryBlockDataNum[BlockCount] << 1) / 6;
 	for (UINT16 i = 0; i < msg_num + 2; ++i) {
 
 		TX_MESSAGE_FUNCTION(i, BLOCK_DATA_SRVCODE, 8);
@@ -625,7 +506,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 		}
 		else if (i == msg_num) {
 
-			tx_msg[i].PackedMsg.DataLen = (Solver->EveryBlockDataNum[BlockCount] << 1) % 6 + 2;
+			tx_msg[i].PackedMsg.DataLen = (Solver.EveryBlockDataNum[BlockCount] << 1) % 6 + 2;
 		}
 		else {
 
@@ -663,14 +544,14 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 			// dsp接收到的帧数与下发帧数相同, 则传CHECKSUM
-			if (((Solver->EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= u16RetrunStatus) {
+			if (((Solver.EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
 			else {
 
-				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
+				//FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
 			}
 		}
 
@@ -688,10 +569,10 @@ INT32 CAN_FlashupdateMsgHandle::BlockCheckSumXmit(VOID){
 
 
 	TX_MESSAGE_FUNCTION(0, BLOCK_CHECKSUM_SRVCODE, 6)
-	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver->BlockCheckSum[BlockCount] & 0x00FF);
-	tx_msg->PackedMsg.MsgData[1] = (BYTE)((Solver->BlockCheckSum[BlockCount] >> 8) & 0x00FF);
-	tx_msg->PackedMsg.MsgData[2] = (BYTE)((Solver->BlockCheckSum[BlockCount] >> 16) & 0x00FF);
-	tx_msg->PackedMsg.MsgData[3] = (BYTE)((Solver->BlockCheckSum[BlockCount] >> 24) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[0] = (BYTE)(Solver.BlockCheckSum[BlockCount] & 0x00FF);
+	tx_msg->PackedMsg.MsgData[1] = (BYTE)((Solver.BlockCheckSum[BlockCount] >> 8) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[2] = (BYTE)((Solver.BlockCheckSum[BlockCount] >> 16) & 0x00FF);
+	tx_msg->PackedMsg.MsgData[3] = (BYTE)((Solver.BlockCheckSum[BlockCount] >> 24) & 0x00FF);
 
 	VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, 1);
 
@@ -834,7 +715,7 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecv(VOID){
 INT32 CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart(VOID) {
 
 	BlockCount++;
-	if (BlockCount >= Solver->BlockCount)
+	if (BlockCount >= Solver.BlockCount)
 	{
 
 		TX_MESSAGE_FUNCTION(0, BLOCK_HEAD_SRVCODE, 8);
@@ -938,15 +819,15 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 
 VOID CAN_FlashupdateMsgHandle::GetBootLoaderRoutine(VOID) {
 
-	msg_data_ptr = (BYTE*)(Solver->BootLoaderFile);
-	//DWORD msg_num = (Solver->BootFileCount)/2;
+	msg_data_ptr = (BYTE*)(Solver.BootLoaderFile);
+	//DWORD msg_num = (Solver.BootFileCount)/2;
 	
-	if (BootLoaderCount > (Solver->BootFileCount)) {
+	if (BootLoaderCount > (Solver.BootFileCount)) {
 
 		//m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_SUCCEED;
 		return;
 	}
-	INT32 remain_tx_msg_num = Solver->BootFileCount - BootLoaderCount;
+	INT32 remain_tx_msg_num = Solver.BootFileCount - BootLoaderCount;
 	if (BootLoaderCount > 97000) {
 	
 		int a = 0;
