@@ -8,13 +8,18 @@ public:
 	UINT32	BlockCheckSum[500];
 	UINT32	BlockAddress[500];
 
-	CString outfilepath;
+
 
 	char	BootLoaderFile[1000000];
 	DWORD	BootFileCount;
-	explicit Blob(CString file_path);
+	explicit Blob(CString out_file_path);
 	~Blob();
-	int Hex_file_resolve() ;
-	int BootLoaderFileResolve() ;
+	BOOL Hex_file_resolve() ;
+	BOOL BootLoaderFileResolve() ;
+
+private:
+	CString OutFilePath;
+	//CString BootFilePath;
+	char*	ReadFile(CString file_path, DWORD *file_length);
 };
 

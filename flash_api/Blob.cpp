@@ -8,9 +8,11 @@
 #include "CAN_FLASHupdateMsgHandle.h"
 #include <afxdb.h>
 #include <stdexcept>
-Blob::Blob(CString file_path) :outfilepath(file_path)
-{
+#include <memory>
 
+Blob::Blob(CString out_file_path):
+	OutFilePath(out_file_path)
+{
 	BlockCount = 0;
 	for (UINT16 i = 0; i < 500; ++i) {
 		EveryBlockDataNum[i] = 0;
@@ -20,9 +22,7 @@ Blob::Blob(CString file_path) :outfilepath(file_path)
 
 			BlockData[i][j] = 0;
 		}
-
 	}
-
 }
 
 
@@ -31,8 +31,8 @@ Blob::~Blob()
 
 }
 
-int Blob::BootLoaderFileResolve() {
-
+BOOL Blob::BootLoaderFileResolve() {
+	
 	CFile file;
 	CFileException ex;
 	CString tarfile_path;
@@ -46,7 +46,9 @@ int Blob::BootLoaderFileResolve() {
 	char *p = new char[file_length];
 	file.Read(p, file_length);
 	file.Close();
-
+	
+	//DWORD file_length;
+	//char* p = ReadFile(BootFilePath, &file_length);
 
 	char *resolve_hex_file = new char[file_length];
 
@@ -101,13 +103,17 @@ int Blob::BootLoaderFileResolve() {
 
 	}
 	BootFileCount = file_count / 2;
+
+	delete resolve_hex_file;
+	delete p;
 	return TRUE;
 }
 
 
 
-int Blob::Hex_file_resolve()
+BOOL Blob::Hex_file_resolve()
 {
+	/*
 	system("del target_file.hex");
 
 	//WinExec("hex2000.exe --memwidth=16 --romwidth=16 --intel -o G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.hex  G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.out", SW_NORMAL);
@@ -120,7 +126,7 @@ int Blob::Hex_file_resolve()
 	CString target_file_path;
 	target_file_path = _T("hex2000.exe --memwidth=16 --romwidth=16 --intel -o ./target_file.hex ");
 
-	target_file_path += outfilepath;
+	target_file_path += OutFilePath;
 	//char abcd[] = T2A(target_file_path.GetBuffer(target_file_path.GetLength()));
 	USES_CONVERSION;
 	//MessageBox(target_file_path, _T("少御"), MB_OK | MB_ICONQUESTION);
@@ -144,8 +150,9 @@ int Blob::Hex_file_resolve()
 	file.Read(p, file_length);
 	file.Close();
 	system("del target_file.hex");
-
-
+	*/
+	DWORD file_length;
+	char* p = ReadFile(OutFilePath, &file_length);
 
 	// Initialization
 #define LINE_COUNT 5000
@@ -381,8 +388,47 @@ int Blob::Hex_file_resolve()
 	return TRUE;
 }
 
+char* Blob::ReadFile(CString file_path, DWORD *file_length) {
 
+	system("del target_file.hex");
 
+	//WinExec("hex2000.exe --memwidth=16 --romwidth=16 --intel -o G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.hex  G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.out", SW_NORMAL);
+	//system("hex2000.exe --memwidth=16 --romwidth=16 --intel -o G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.hex  G:/CCSV7workspace/28377_UPS/28377D_INV/FLASH_RUN/28377D_INV.out");
+	//system("del 28377D_INV.hex");
+	//system("cmd");
+	CFile	file;
+	CFileException ex;
+
+	CString target_file_path;
+	target_file_path = _T("hex2000.exe --memwidth=16 --romwidth=16 --intel -o ./target_file.hex ");
+
+	target_file_path += file_path;
+	//char abcd[] = T2A(target_file_path.GetBuffer(target_file_path.GetLength()));
+	USES_CONVERSION;
+	//MessageBox(target_file_path, _T("少御"), MB_OK | MB_ICONQUESTION);
+	//CHAR *abcd = T2A(target_file_path.GetBuffer(0));
+	//T2A(m_strCMD.GetBuffer(m_strCMD.GetLength()))
+	WinExec(T2A(target_file_path.GetBuffer(target_file_path.GetLength())), SW_HIDE);
+
+	if (IDNO == AfxMessageBox(_T("Are you sure Flashupdate?"), MB_YESNO)) {
+
+		system("del target_file.hex");
+		throw std::runtime_error("flash update failed!");
+	}
+	if (!file.Open(_T("./target_file.hex"), CFile::modeRead | CFile::shareDenyWrite, &ex))
+		throw std::runtime_error("Please check flashupdate file!!!");
+
+	*file_length = (DWORD)file.GetLength();
+	if (file.GetLength() > 1000000L)
+		throw std::runtime_error("file too large!!!");
+
+	char *p = new char[*file_length];
+	file.Read(p, *file_length);
+	file.Close();
+	system("del target_file.hex");
+
+	return p;
+}
 /*
 void FlashUpdateMain::OnBnClickedStartFlashUpdate()
 {
