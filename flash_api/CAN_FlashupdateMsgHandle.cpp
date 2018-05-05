@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-// A simple registry for caffe commands.
+// A simple registry commands.
 typedef INT32(CAN_FlashupdateMsgHandle::*BrewFunction)(VOID);
 typedef std::map<_FLASHUPDATE_STATUS, BrewFunction> BrewMap;
 BrewMap g_brew_map;
@@ -103,34 +103,6 @@ CAN_FlashupdateMsgHandle::CAN_FlashupdateMsgHandle(const Blob &solver):Solver(so
 }
 
 
-
-/*
-BrewFunction FlashUpdateStateMachine[22]{
-
-	&CAN_FlashupdateMsgHandle::FlashUpdateInvalid,
-	&CAN_FlashupdateMsgHandle::ParameterRefresh,
-	&CAN_FlashupdateMsgHandle::HandCommProcess,
-	&CAN_FlashupdateMsgHandle::ChipDecodeProcess,
-	&CAN_FlashupdateMsgHandle::VerifyApiVersion,
-	&CAN_FlashupdateMsgHandle::EraseSectorOrderXmit,
-	&CAN_FlashupdateMsgHandle::EraseSectorStatusRecv,
-	&CAN_FlashupdateMsgHandle::ProgramPermissionGet,
-	&CAN_FlashupdateMsgHandle::BlockHeadXmit,
-	&CAN_FlashupdateMsgHandle::BlockHeadRecv,
-	&CAN_FlashupdateMsgHandle::BlockDataXmit,
-	&CAN_FlashupdateMsgHandle::BlockDataRecv,
-	&CAN_FlashupdateMsgHandle::BlockCheckSumXmit,
-	&CAN_FlashupdateMsgHandle::BlockCheckSumRecv,
-	&CAN_FlashupdateMsgHandle::BlockProgOrderXmit,
-	&CAN_FlashupdateMsgHandle::BlockProgOrderRecv,
-	&CAN_FlashupdateMsgHandle::VerifyXmit,
-	&CAN_FlashupdateMsgHandle::VerifyRecv,
-	&CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart,
-	&CAN_FlashupdateMsgHandle::FlashUpdateComplete,
-	&CAN_FlashupdateMsgHandle::FlashUpdateSucceed,
-	&CAN_FlashupdateMsgHandle::FlashUpdateOver
-
-};*/
 /**********************************************************************
 ~CAN_CfgMsgHandle-----destructor function
 **********************************************************************/
