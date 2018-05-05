@@ -192,12 +192,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Blob.h" />
+    <ClInclude Include="BootFileResolve.h" />
     <ClInclude Include="CanAnalyse.h" />
     <ClInclude Include="CAN_FlashupdateMsgHandle.h" />
     <ClInclude Include="ControlCAN.h" />
+    <ClInclude Include="DeviceProcess.h" />
     <ClInclude Include="FlashUpdateMain.h" />
     <ClInclude Include="flash_api.h" />
     <ClInclude Include="flash_apiDlg.h" />
+    <ClInclude Include="OutFileResolve.h" />
     <ClInclude Include="ParameterWatching.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
@@ -205,11 +208,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Blob.cpp" />
+    <ClCompile Include="BootFileResolve.cpp" />
     <ClCompile Include="CanAnalyse.cpp" />
     <ClCompile Include="CAN_FlashupdateMsgHandle.cpp" />
+    <ClCompile Include="DeviceProcess.cpp" />
     <ClCompile Include="FlashUpdateMain.cpp" />
     <ClCompile Include="flash_api.cpp" />
     <ClCompile Include="flash_apiDlg.cpp" />
+    <ClCompile Include="OutFileResolve.cpp" />
     <ClCompile Include="ParameterWatching.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

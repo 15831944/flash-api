@@ -12,15 +12,14 @@ typedef std::map<_FLASHUPDATE_STATUS, BrewFunction> BrewMap;
 BrewMap g_brew_map;
 
 
-#define RegisterFlashUpdateFunction(FLASH_UPDATE_STSTUS, func) \
-class __Registerer_##func { \
- public: /* NOLINT */ \
-  __Registerer_##func() { \
-    g_brew_map[FLASH_UPDATE_STSTUS] = &CAN_FlashupdateMsgHandle::func; \
-  } \
-}; \
-__Registerer_##func g_registerer_##func; \
-
+#define RegisterFlashUpdateFunction(FLASH_UPDATE_STSTUS, func)				\
+	class __Registerer_##func{												\
+	 public: /* NOLINT */													\
+	  __Registerer_##func() {												\
+		g_brew_map[FLASH_UPDATE_STSTUS] = &CAN_FlashupdateMsgHandle::func;  \
+	  }																		\
+	};																		\
+	__Registerer_##func g_registerer_##func;								\
 
 #define RegisterFunction()\
 RegisterFlashUpdateFunction(FLASH_UPDATE_INVALID, FlashUpdateInvalid);\
