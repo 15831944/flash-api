@@ -19,26 +19,26 @@
 
 #define MAX_ERROR_MSG	100
 #define MESSAGE_NUM 500
-#define CheckRxMessageNum() if (msg_num == 0)return 0;\
+#define CHECK_RX_MESSAGE_NUM() if (msg_num == 0)return 0;\
 							msg_num = (msg_num > MESSAGE_NUM)? MESSAGE_NUM:msg_num;
 
 
-#define MESSAGE_FILLTER(SERVICECODE) ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&	\
-									(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON)  &&	\
-									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE) && \
-									(rx_msg[i].PackedMsg.b6SourceMacId >= NodeOffset) && \
-									(rx_msg[i].PackedMsg.b6SourceMacId < (NodeOffset+0x10)))
+#define MESSAGE_FILLTER(SERVICECODE) ((RXMessage[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&	\
+									(RXMessage[i].PackedMsg.b6DestinationMacId == MAC_ID_MON)  &&	\
+									(RXMessage[i].PackedMsg.b7ServiceCode == SERVICECODE) && \
+									(RXMessage[i].PackedMsg.b6SourceMacId >= NodeOffset) && \
+									(RXMessage[i].PackedMsg.b6SourceMacId < (NodeOffset+0x10)))
 
 #define	TX_MESSAGE_FUNCTION(MSG_NUMBER, SERVICE_CODE, DLC)	\
-	tx_msg[MSG_NUMBER].PackedMsg.RemoteFlag = 0;			\
-	tx_msg[MSG_NUMBER].PackedMsg.ExternFlag = 0;				\
-	tx_msg[MSG_NUMBER].PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;\
-	tx_msg[MSG_NUMBER].PackedMsg.b7ServiceCode = SERVICE_CODE;\
-	tx_msg[MSG_NUMBER].PackedMsg.b10MsgClass = m_ucMsgClass;\
-	tx_msg[MSG_NUMBER].PackedMsg.b1Fragment = NONFRAG_MSG;\
-	tx_msg[MSG_NUMBER].PackedMsg.b1RsRq = RQ_MSG;\
-	tx_msg[MSG_NUMBER].PackedMsg.b6SourceMacId = MAC_ID_MON;\
-	tx_msg[MSG_NUMBER].PackedMsg.DataLen = DLC;\
+	TXMessage[MSG_NUMBER].PackedMsg.RemoteFlag = 0;			\
+	TXMessage[MSG_NUMBER].PackedMsg.ExternFlag = 0;				\
+	TXMessage[MSG_NUMBER].PackedMsg.b6DestinationMacId = m_u16UpdaingNodeAdd;\
+	TXMessage[MSG_NUMBER].PackedMsg.b7ServiceCode = SERVICE_CODE;\
+	TXMessage[MSG_NUMBER].PackedMsg.b10MsgClass = m_ucMsgClass;\
+	TXMessage[MSG_NUMBER].PackedMsg.b1Fragment = NONFRAG_MSG;\
+	TXMessage[MSG_NUMBER].PackedMsg.b1RsRq = RQ_MSG;\
+	TXMessage[MSG_NUMBER].PackedMsg.b6SourceMacId = MAC_ID_MON;\
+	TXMessage[MSG_NUMBER].PackedMsg.DataLen = DLC;\
 
 
 //-----------------------------------------------------------------------------
@@ -334,9 +334,9 @@ typedef struct _HOST_MODULE_ITC_T1
 
 typedef struct _ERROR_MESSAGE1{
 
-	BYTE receive_done;
-	DWORD ereor_cnt;
-	_FLASHUPDATE_STATUS error_state_saved;
+	BYTE ReceiveDone;
+	DWORD ErrorCnt;
+	_FLASHUPDATE_STATUS ErrorStateSaved;
 
 }_ERROR_MESSAGE;
 
@@ -407,11 +407,11 @@ private:
 	UCHAR m_ucMsgClass;
 
 
-	int device_type = 4;	// CANalyst-II
-	int device_ind = 0;		// first device
-	int can_ind = 0;		// CAN channel 0
-	CAN_PACKED_PROTOCOL_U	*tx_msg;
-	CAN_PACKED_PROTOCOL_U	*rx_msg;
+	int DeviceType = 4;	// CANalyst-II
+	int DeviceInd = 0;		// first device
+	int CanInd = 0;		// CAN channel 0
+	CAN_PACKED_PROTOCOL_U	*TXMessage;
+	CAN_PACKED_PROTOCOL_U	*RXMessage;
 
 
 
