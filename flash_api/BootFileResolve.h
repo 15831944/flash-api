@@ -3,7 +3,6 @@
 #pragma once
 #include "Blob.h"
 
-
 class BootFileResolve : public Blob
 {
 
