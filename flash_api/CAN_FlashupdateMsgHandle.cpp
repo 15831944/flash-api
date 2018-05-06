@@ -208,7 +208,7 @@ INT32 CAN_FlashupdateMsgHandle::ParameterRefresh(VOID)
 
 
 INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
-	//发握手命令
+	// Send Hand command
 	TX_MESSAGE_FUNCTION(0, HANDS_COMM_SRVCODE, 4);
 
 	tx_msg->PackedMsg.MsgData[0] = HAND_COMM_QUERY & 0xFF;
@@ -231,7 +231,7 @@ INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 		{
 
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
-			//握手成功
+			//hand succeed
 			if (HAND_OK_RESPOND == u16RetrunStatus)
 			{
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
@@ -240,7 +240,7 @@ INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 
 		}
 	}
-	//等待解密信息反馈
+	
 	MsgErrorProcess(SEND_MSG_WAITING_CHIP_DECODE_RESPOND, FALSE);
 
 
@@ -268,7 +268,7 @@ INT32 CAN_FlashupdateMsgHandle::ChipDecodeProcess(VOID){
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//芯片解密OK
+		
 			if (CHIP_DECODE_SUCCESS == u16RetrunStatus)
 			{
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
@@ -306,7 +306,7 @@ INT32 CAN_FlashupdateMsgHandle::VerifyApiVersion(VOID){
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//API版本核对成功
+			
 			if (API_VESION_OK == u16RetrunStatus)
 			{
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
@@ -443,13 +443,14 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadRecv(VOID){
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
 
-			//允许传有效数据,准备发数据信息
+			// Block head transmit ok, ready to transmit block data
 			if (BLOCK_HEAD_OK == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
 
+			// received BlockHead transmit Error, and give up this module, do not process it 
 			else {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
@@ -514,19 +515,18 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 		if (MESSAGE_FILLTER(BLOCK_DATA_SRVCODE)) {
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			// dsp接收到的帧数与下发帧数相同, 则传CHECKSUM
+			// dsp received msg num equal to transmit num, and transmit Block CHECKSUM
 			if (((Solver.EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
+			// do not process this module
 			else {
 
 				//FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
 			}
 		}
-
-
 	}
 	MsgErrorProcess(SEND_MSG_BLOCK_CHECKSUM, FALSE);
 	return u16RetrunStatus;
@@ -571,7 +571,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockCheckSumRecv(VOID){
 		{
 
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
-
+			// 
 			if (CHECK_SUM_SUCCESFUL == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
@@ -618,11 +618,13 @@ INT32 CAN_FlashupdateMsgHandle::BlockProgOrderRecv(VOID){
 		if (MESSAGE_FILLTER(BLOCK_PROMG_STATUS_SRVCODE))
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
-
+			// received dsp xmit message,if dsp respond program status success,
+			// transmit order flash verify
 			if (PROGRAM_STATUS_SUCCESS == u16RetrunStatus) {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].receive_done = TRUE;
 			}
+			// this module do not process
 			else {
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = MAX_ERROR_MSG;
@@ -664,7 +666,7 @@ INT32 CAN_FlashupdateMsgHandle::VerifyRecv(VOID){
 			FlashUpdateProgress[rx_msg[i].PackedMsg.b6SourceMacId] = BlockCount;
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
-			//校验成功,升级成功,反馈给后台TBD
+			//Verify ok, waiting to send dsp restart order, or send next block
 			if (VERIFY_OK == u16RetrunStatus){
 
 				FlashUpdateErrorMsg[rx_msg[i].PackedMsg.b6SourceMacId].ereor_cnt = 0;
@@ -703,11 +705,10 @@ INT32 CAN_FlashupdateMsgHandle::SendNextBlock_DspRestart(VOID) {
 
 	}
 
-	//还有BLOCK需传输,
+	//Send Next Block
 	else
 	{
 
-		//状态机回到传输下一个BLOCK头
 		m_pHostModuleItc->u16FlashupdateStatus = SEND_MSG_BLOCK_HEAD;
 	}
 
@@ -730,6 +731,7 @@ INT32 CAN_FlashupdateMsgHandle::FlashUpdateComplete(VOID) {
 		{
 			u16RetrunStatus = *(UINT16 *)(rx_msg[i].PackedMsg.MsgData);
 
+			// DSP respond message, and Flashupdate Succeed
 			if (FILE_TRANS_END == u16RetrunStatus) {
 
 				m_pHostModuleItc->u16FlashupdateStatus = FLASH_UPDATE_SUCCEED;
@@ -788,9 +790,10 @@ void	CAN_FlashupdateMsgHandle::MsgErrorProcess(_FLASHUPDATE_STATUS flash_update_
 	}
 }
 
+// BOOT Loader Message Xmit
 VOID CAN_FlashupdateMsgHandle::GetBootLoaderRoutine(VOID) {
 
-	msg_data_ptr = (BYTE*)(Solver.BootLoaderFile);
+	BootMsgPtr = (BYTE*)(Solver.BootLoaderFile);
 	//DWORD msg_num = (Solver.BootFileCount)/2;
 	
 	if (BootLoaderCount > (Solver.BootFileCount)) {
@@ -803,7 +806,7 @@ VOID CAN_FlashupdateMsgHandle::GetBootLoaderRoutine(VOID) {
 	
 		int a = 0;
 	}
-	msg_data_ptr = msg_data_ptr + BootLoaderCount;
+	BootMsgPtr = BootMsgPtr + BootLoaderCount;
 	INT32 tx_msg_num = (remain_tx_msg_num > 1000) ? 1000 : remain_tx_msg_num;
 	for (UINT16 i = 0; i < tx_msg_num/2; ++i) {
 
@@ -812,10 +815,10 @@ VOID CAN_FlashupdateMsgHandle::GetBootLoaderRoutine(VOID) {
 		tx_msg[i].Frame.ID = 0x0001;
 		tx_msg[i].Frame.DataLen = 2;
 
-		tx_msg[i].Frame.Data[0] = *msg_data_ptr;
-		++msg_data_ptr;
-		tx_msg[i].Frame.Data[1] = *msg_data_ptr;
-		++msg_data_ptr;
+		tx_msg[i].Frame.Data[0] = *BootMsgPtr;
+		++BootMsgPtr;
+		tx_msg[i].Frame.Data[1] = *BootMsgPtr;
+		++BootMsgPtr;
 	}
 	
 	int wrong = VCI_Transmit(device_type, device_ind, can_ind, &tx_msg->Frame, tx_msg_num/2);

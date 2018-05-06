@@ -1,3 +1,6 @@
+// This class transfer .out file to some message, 
+// which is TI C2000 MCU can understand.
+
 #pragma once
 #include "Blob.h"
 class OutFileResolve :

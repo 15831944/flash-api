@@ -1,3 +1,9 @@
+// This is a class, process some message, 
+// which is commmunicate with TI C2000 MCU: TMS320F2808, TMS320F28377D etc;
+// This Class have two function: Online FlashUpdate, BootLoader;
+// 
+
+
 #pragma once
 //--------------------------------------------------------------
 //head files
@@ -15,6 +21,8 @@
 #define MESSAGE_NUM 500
 #define CheckRxMessageNum() if (msg_num == 0)return 0;\
 							msg_num = (msg_num > MESSAGE_NUM)? MESSAGE_NUM:msg_num;
+
+
 #define MESSAGE_FILLTER(SERVICECODE) ((rx_msg[i].PackedMsg.b10MsgClass == CAN_RESERVED_CLASS) &&	\
 									(rx_msg[i].PackedMsg.b6DestinationMacId == MAC_ID_MON)  &&	\
 									(rx_msg[i].PackedMsg.b7ServiceCode == SERVICECODE) && \
@@ -419,7 +427,7 @@ private:
 	
 	UINT32 BootLoaderCount;
 public:
-	BYTE * msg_data_ptr;
+	BYTE * BootMsgPtr;
 	// 0x00, 0x10, 0x20
 	UINT16 NodeOffset;
 	// 1 - 16
