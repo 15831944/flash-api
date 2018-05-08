@@ -1,5 +1,5 @@
-// This class transfer .out file to some message, 
-// which is TI C2000 MCU can understand.
+// This class transfer .out file to HEX file,
+// read hex file using CFile Class, and transfer ASCII to UINT16
 
 #pragma once
 #include "Blob.h"
