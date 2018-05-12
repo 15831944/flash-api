@@ -230,7 +230,7 @@ INT32 CAN_FlashupdateMsgHandle::HandCommProcess(VOID){
 		{
 
 			return_status = *(UINT16 *)(RXMessage[i].PackedMsg.MsgData);
-			//hand succeed
+			//shake hand succeed
 			if (HAND_OK_RESPOND == return_status) {
 
 				FlashUpdateErrorMsg[RXMessage[i].PackedMsg.b6SourceMacId].ReceiveDone = TRUE;
@@ -452,8 +452,8 @@ INT32 CAN_FlashupdateMsgHandle::BlockHeadRecv(VOID){
 	return return_status;
 }
 
-
-
+DWORD transmit_msg_num = 0;
+DWORD received_msg_num = 0;
 INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 
 	BYTE *msg_data_ptr = (BYTE*)(Solver.BlockData[BlockCount]);
@@ -481,7 +481,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 
 	}
 
-	VCI_Transmit(DeviceType, DeviceInd, CanInd, &TXMessage->Frame, msg_num + 2);
+	transmit_msg_num = VCI_Transmit(DeviceType, DeviceInd, CanInd, &TXMessage->Frame, msg_num + 2);
 
 
 	m_pHostModuleItc->u16FlashupdateStatus = WAITING_MSG__BLOCK_DATATRANS_END;
@@ -490,7 +490,7 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataXmit(VOID){
 }
 
 
-
+int level;
 INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 
 	DWORD msg_num = VCI_GetReceiveNum(DeviceType, DeviceInd, CanInd);
@@ -501,9 +501,11 @@ INT32 CAN_FlashupdateMsgHandle::BlockDataRecv(VOID) {
 	UINT16 return_status = 0;
 
 	for (DWORD i = 0; i < msg_num; ++i) {
+
+		received_msg_num = msg_num;
 		if (MESSAGE_FILLTER(BLOCK_DATA_SRVCODE)) {
 			return_status = *(UINT16 *)(RXMessage[i].PackedMsg.MsgData);
-
+			level = return_status;
 			// dsp received msg num equal to transmit num, and transmit Block CHECKSUM
 			if (((Solver.EveryBlockDataNum[BlockCount] << 1) / 6 + 1) <= return_status) {
 
