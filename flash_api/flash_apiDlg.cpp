@@ -173,13 +173,13 @@ HCURSOR Cflash_apiDlg::OnQueryDragIcon()
 
 void Cflash_apiDlg::OnBnClickedStart()
 {
-	/*OnOK();
-	FlashUpdateInv	FlashUpdateInv;;
-	FlashUpdateInv.DoModal();*/
-	FlashUpdateMain* dlg;
+	OnOK();
+	FlashUpdateMain	flash_update_model;
+	flash_update_model.DoModal();
+	/*FlashUpdateMain* dlg;
 	dlg = new FlashUpdateMain;
 	dlg->Create(IDD_FLASH_UPDATE_INV); //非模态对话框ID号
-	dlg->ShowWindow(SW_SHOW);
+	dlg->ShowWindow(SW_SHOW);*/
 }
 
 
